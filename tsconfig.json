@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": "..",
+    "declaration": true,
+    "sourceMap": true,
+    "lib": [ "es2015", "dom" ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "integration-test/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
