@@ -10,7 +10,7 @@ export interface ICredentials {
     serverURL: string;
     username: string;
 }
-
+// [BEGIN] pedro-arruda-moreira: secure notes
 interface IUrlJson {
     url: string;
     secureNote: string;
@@ -30,7 +30,7 @@ const fromBase64: (text: string) => string = (b64) => {
         return Buffer.from(b64, 'base64').toString();
     }
 };
-
+// [END] pedro-arruda-moreira: secure notes
 /**
  * The vault class.
  *

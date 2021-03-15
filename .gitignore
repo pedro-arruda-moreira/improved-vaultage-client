@@ -10,3 +10,4 @@ compiled
 .awcache
 tmp
 demo/tmp
+*.bak

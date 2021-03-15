@@ -1,6 +1,6 @@
 import * as util from 'util';
 import * as vaultage from '../src/vaultage';
-
+// pedro-arruda-moreira: secure notes
 import { IVaultDBEntryAttrsImproved, Vault } from '../src/vaultage';
 
 async function runIntegrationTest() {
@@ -19,10 +19,12 @@ async function runIntegrationTest() {
     console.log('Authentication and pull OK ! Creating entry...');
 
     // adds an entry
+    // pedro-arruda-moreira: secure notes
     const newEntry: IVaultDBEntryAttrsImproved = {
         title: 'MyTitle',
         login: 'Username',
         password: 'Password',
+        // pedro-arruda-moreira: secure notes
         itemUrl: 'http://url',
         secureNoteText: ''
     };
@@ -53,9 +55,11 @@ async function runIntegrationTest() {
     if (e.password !== newEntry.password) {
         fail(vault, 'The fetched entry has a different password than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e.itemUrl !== newEntry.itemUrl) {
         fail(vault, 'The fetched entry has a different url than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e.secureNoteText !== newEntry.secureNoteText) {
         fail(vault, 'The fetched entry has a different secure note than the created entry.');
     }
@@ -63,10 +67,12 @@ async function runIntegrationTest() {
     console.log('Entry correctly fetched ! Trying to edit it...');
 
     // edit our entry
+    // pedro-arruda-moreira: secure notes
     const newEntry2: IVaultDBEntryAttrsImproved = {
         title: 'MyTitle2',
         login: 'Username2',
         password: 'Password2',
+        // pedro-arruda-moreira: secure notes
         itemUrl: 'http://url2',
         secureNoteText: 'my secure note'
     };
@@ -98,9 +104,11 @@ async function runIntegrationTest() {
     if (e2.password !== newEntry2.password) {
         fail(vault, 'The fetched entry has a different password than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e2.itemUrl !== newEntry2.itemUrl) {
         fail(vault, 'The fetched entry has a different url than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e2.secureNoteText !== newEntry2.secureNoteText) {
         fail(vault, 'The fetched entry has a different secure note than the created entry.');
     }
@@ -133,9 +141,11 @@ async function runIntegrationTest() {
     if (e3.password !== newEntry2.password) {
         fail(vault, 'The fetched entry has a different password than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e3.itemUrl !== newEntry2.itemUrl) {
         fail(vault, 'The fetched entry has a different url than the created entry.');
     }
+    // pedro-arruda-moreira: secure notes
     if (e3.secureNoteText !== newEntry2.secureNoteText) {
         fail(vault, 'The fetched entry has a different secure note than the created entry.');
     }
