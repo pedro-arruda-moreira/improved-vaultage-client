@@ -312,11 +312,11 @@ export class Vault {
         const returnVal: IVaultDBEntryImproved[] = [];
         for (const entry of entries) {
             const cloneAny = deepCopy(entry) as any;
-            const url = cloneAny.url;
+            const url = cloneAny.url as string;
             delete cloneAny.url;
             const clone = cloneAny as IVaultDBEntryImproved;
             try {
-                const urlJson = JSON.parse(url) as IUrlJson;
+                const urlJson = JSON.parse(url.split('|||').join(',')) as IUrlJson;
                 clone.itemUrl = urlJson.url;
                 clone.secureNoteText = fromBase64(urlJson.secureNote);
             } catch (e) {
