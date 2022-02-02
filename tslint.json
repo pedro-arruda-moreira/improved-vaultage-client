@@ -9,6 +9,7 @@
         "quotemark": [ true, "single" ],
         "trailing-comma": false,
         "variable-name": [ true, "check-format", "allow-leading-underscore"],
-        "max-line-length": [ true, 140 ]
+        "max-line-length": [ true, 140 ],
+        "ordered-imports": [ false ]
     }
 }
