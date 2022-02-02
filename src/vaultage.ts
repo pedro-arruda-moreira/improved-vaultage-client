@@ -1,9 +1,12 @@
 import { Crypto } from './Crypto';
 import { HttpApi } from './HTTPApi';
 import { HttpRequestFunction, HttpService } from './HTTPService';
+import { IConfigCache } from './IConfigCache';
 import { IHttpParams, ISaltsConfig } from './interface';
+import { IVaultageConfig } from 'vaultage-protocol';
 import { Vault } from './Vault';
 
+export { IConfigCache } from './IConfigCache';
 export { Passwords } from './Passwords';
 export { Vault } from './Vault';
 export { VaultageError, ERROR_CODE } from './VaultageError';
@@ -11,6 +14,19 @@ export * from './interface';
 
 // tslint:disable-next-line:no-var-requires
 const pkg = require('../package.json');
+
+// pedro-arruda-moreira: config cache
+class NoOPSaltsCache implements IConfigCache {
+
+    public static INSTANCE = new NoOPSaltsCache();
+    public saveConfig(_: string, __: IVaultageConfig): void {
+        return;
+    }
+
+    public loadConfig(_: string): IVaultageConfig | null {
+        return null;
+    }
+}
 
 /**
  * Attempts to pull the cipher and decode it. Saves credentials on success.
@@ -23,7 +39,9 @@ export async function login(
         serverURL: string,
         username: string,
         masterPassword: string,
-        httpParams?: IHttpParams): Promise<Vault> {
+        // pedro-arruda-moreira: config cache
+        httpParams?: IHttpParams,
+        configCache: IConfigCache = NoOPSaltsCache.INSTANCE): Promise<Vault> {
 
     const creds = {
         serverURL: serverURL.replace(/\/$/, ''), // Removes trailing slash
@@ -32,7 +50,16 @@ export async function login(
         remoteKey: 'null'
     };
 
-    const config = await HttpApi.pullConfig(creds.serverURL, httpParams);
+    // pedro-arruda-moreira: config cache
+    let obtainedConfig = configCache.loadConfig(creds.serverURL);
+    if (!obtainedConfig) {
+        obtainedConfig = await HttpApi.pullConfig(creds.serverURL, httpParams);
+        if (!obtainedConfig.demo) {
+            configCache.saveConfig(creds.serverURL, obtainedConfig);
+        }
+    }
+
+    const config = obtainedConfig;
 
     const salts: ISaltsConfig = {
         LOCAL_KEY_SALT: config.salts.local_key_salt,
