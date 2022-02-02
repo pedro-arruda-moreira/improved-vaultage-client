@@ -15,7 +15,7 @@ export * from './interface';
 // tslint:disable-next-line:no-var-requires
 const pkg = require('../package.json');
 
-//pedro-arruda-moreira: config cache
+// pedro-arruda-moreira: config cache
 class NoOPSaltsCache implements IConfigCache {
 
     public static INSTANCE = new NoOPSaltsCache();
@@ -39,7 +39,7 @@ export async function login(
         serverURL: string,
         username: string,
         masterPassword: string,
-        //pedro-arruda-moreira: config cache
+        // pedro-arruda-moreira: config cache
         httpParams?: IHttpParams,
         configCache: IConfigCache = NoOPSaltsCache.INSTANCE): Promise<Vault> {
 
@@ -50,11 +50,13 @@ export async function login(
         remoteKey: 'null'
     };
 
-    //pedro-arruda-moreira: config cache
+    // pedro-arruda-moreira: config cache
     let obtainedConfig = configCache.loadConfig(creds.serverURL);
     if (!obtainedConfig) {
         obtainedConfig = await HttpApi.pullConfig(creds.serverURL, httpParams);
-        configCache.saveConfig(creds.serverURL, obtainedConfig);
+        if (!obtainedConfig.demo) {
+            configCache.saveConfig(creds.serverURL, obtainedConfig);
+        }
     }
 
     const config = obtainedConfig;

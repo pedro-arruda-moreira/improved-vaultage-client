@@ -38,7 +38,9 @@ describe('login', () => {
     beforeEach(() => {
         mockAPI = jest.fn();
         HttpService.mock(mockAPI);
+        // pedro-arruda-moreira: config cache
         obtainedConfig = null;
+        config.demo = false;
     });
 
     it('detects an unreachable remote', async () => {
@@ -100,7 +102,7 @@ describe('login', () => {
         expect(vault).toBeInstanceOf(Vault);
     });
 
-    //pedro-arruda-moreira: config cache
+    // pedro-arruda-moreira: config cache
     it('creates a vault on success using config cache', async () => {
 
         mockAPI.mockImplementationOnce((_parameters) => {
@@ -134,6 +136,46 @@ describe('login', () => {
         expect(vault).toBeInstanceOf(Vault);
         expect(vault2).toBeInstanceOf(Vault);
         expect(obtainedConfig).toBe(config);
+    });
+    it('creates a vault on success using config cache - no cache if demo mode', async () => {
+        config.demo = true;
+        mockAPI.mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response<IVaultageConfig>(config));
+        }).mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response({}));
+        }).mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response<IVaultageConfig>(config));
+        }).mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response({}));
+        });
+
+        const vault = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+        const vault2 = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+
+        expect(mockAPI).toHaveBeenNthCalledWith(1,
+            {
+                url: 'url/config'
+            }
+        );
+        expect(mockAPI).toHaveBeenNthCalledWith(2,
+            {
+                url: 'url/username/483c29af947d335ed2851c62f1daa12227126b00035387f66f2d1492036d4dcb/vaultage_api'
+            }
+        );
+        expect(mockAPI).toHaveBeenNthCalledWith(3,
+            {
+                url: 'url/config'
+            }
+        );
+        expect(mockAPI).toHaveBeenNthCalledWith(4,
+            {
+                url: 'url/username/483c29af947d335ed2851c62f1daa12227126b00035387f66f2d1492036d4dcb/vaultage_api'
+            }
+        );
+
+        expect(vault).toBeInstanceOf(Vault);
+        expect(vault2).toBeInstanceOf(Vault);
+        expect(obtainedConfig).toBe(null);
     });
 
     it('Uses basic auth params', async () => {
