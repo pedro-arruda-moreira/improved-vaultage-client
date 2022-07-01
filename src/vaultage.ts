@@ -4,7 +4,7 @@ import { HttpRequestFunction, HttpService } from './HTTPService';
 import { IConfigCache } from './IConfigCache';
 import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
-import { Vault } from './Vault';
+import { ICredentials, Vault } from './Vault';
 
 export { IConfigCache } from './IConfigCache';
 export { Passwords } from './Passwords';
@@ -27,13 +27,15 @@ class NoOPSaltsCache implements IConfigCache {
         return null;
     }
 }
-
+// pedro-arruda-moreira: fixed docs.
 /**
  * Attempts to pull the cipher and decode it. Saves credentials on success.
  * @param serverURL URL to the vaultage server.
  * @param username The username used to locate the cipher on the server
  * @param masterPassword Plaintext of the master password
- * @param cb Callback invoked on completion. err is null if no error occured.
+ * @param httpParams HTTP Parameters (optional)
+ * @param configCache Configuration cache (optional)
+ * @see IHttpParams
  */
 export async function login(
         serverURL: string,
@@ -48,7 +50,7 @@ export async function login(
         username: username,
         localKey: 'null',
         remoteKey: 'null'
-    };
+    } as ICredentials;
 
     // pedro-arruda-moreira: config cache
     let obtainedConfig = configCache.loadConfig(creds.serverURL);
