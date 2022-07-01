@@ -8,7 +8,20 @@ const sjcl = require('../lib/sjcl') as any;
  * Handles the crypto stuff
  */
 export class Crypto {
+    // pedro-arruda-moreira: offline mode support
+    /**
+     * Returns the offline key for a given offline salt and master password.
+     *
+     * @param masterPassword Plaintext of the master password
+     * @param offlineSalt the offline salt
+     */
+    public static deriveOfflineKey(masterPassword: string, offlineSalt: string): string {
+        const masterHash = sjcl.hash.sha512.hash(masterPassword);
+        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash , offlineSalt, Crypto.OFFLINE_PBKDF2_DIFFICULTY));
+    }
 
+    // pedro-arruda-moreira: offline mode support
+    private static OFFLINE_PBKDF2_DIFFICULTY: number = 262144;
     public PBKDF2_DIFFICULTY: number = 32768;
 
     constructor(

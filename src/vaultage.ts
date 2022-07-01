@@ -5,6 +5,7 @@ import { IConfigCache } from './IConfigCache';
 import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
+import { IOfflineProvider } from './IOfflineProvider';
 
 export { IConfigCache } from './IConfigCache';
 export { Passwords } from './Passwords';
@@ -27,6 +28,24 @@ class NoOPSaltsCache implements IConfigCache {
         return null;
     }
 }
+
+// pedro-arruda-moreira: offline mode support
+class NoOPOfflineProvider implements IOfflineProvider {
+    public static INSTANCE = new NoOPOfflineProvider();
+    public saveOfflineCipher(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    public isRunningOffline(): Promise<boolean> {
+        return Promise.resolve(false);
+    }
+    public offlineCipher(): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+    public offlineSalt(): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+}
+
 // pedro-arruda-moreira: fixed docs.
 /**
  * Attempts to pull the cipher and decode it. Saves credentials on success.
@@ -35,6 +54,7 @@ class NoOPSaltsCache implements IConfigCache {
  * @param masterPassword Plaintext of the master password
  * @param httpParams HTTP Parameters (optional)
  * @param configCache Configuration cache (optional)
+ * @param offlineProvider Offline provider (optional)
  * @see IHttpParams
  */
 export async function login(
@@ -43,7 +63,8 @@ export async function login(
         masterPassword: string,
         // pedro-arruda-moreira: config cache
         httpParams?: IHttpParams,
-        configCache: IConfigCache = NoOPSaltsCache.INSTANCE): Promise<Vault> {
+        configCache: IConfigCache = NoOPSaltsCache.INSTANCE,
+        offlineProvider: IOfflineProvider = NoOPOfflineProvider.INSTANCE): Promise<Vault> {
 
     const creds = {
         serverURL: serverURL.replace(/\/$/, ''), // Removes trailing slash
@@ -52,12 +73,26 @@ export async function login(
         remoteKey: 'null'
     } as ICredentials;
 
-    // pedro-arruda-moreira: config cache
-    let obtainedConfig = configCache.loadConfig(creds.serverURL);
-    if (!obtainedConfig) {
-        obtainedConfig = await HttpApi.pullConfig(creds.serverURL, httpParams);
-        if (!obtainedConfig.demo) {
-            configCache.saveConfig(creds.serverURL, obtainedConfig);
+    const offline = await offlineProvider.isRunningOffline();
+    let obtainedConfig: IVaultageConfig | null = null;
+    if (offline) {
+        obtainedConfig = {
+            version: 1,
+            demo: false,
+            salts: {
+                local_key_salt: await offlineProvider.offlineSalt(),
+                remote_key_salt: ''
+            }
+        };
+    } else {
+
+        // pedro-arruda-moreira: config cache
+        obtainedConfig = configCache.loadConfig(creds.serverURL);
+        if (!obtainedConfig) {
+            obtainedConfig = await HttpApi.pullConfig(creds.serverURL, httpParams);
+            if (!obtainedConfig.demo) {
+                configCache.saveConfig(creds.serverURL, obtainedConfig);
+            }
         }
     }
 
@@ -70,14 +105,25 @@ export async function login(
 
     const crypto = new Crypto(salts);
 
-    const remoteKey = crypto.deriveRemoteKey(masterPassword);
-    // possible optimization: compute the local key while the request is in the air
-    const localKey = crypto.deriveLocalKey(masterPassword);
+    if (offline) {
+        creds.localKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
+    } else {
+        // possible optimization: compute the local key while the request is in the air
+        const localKey = crypto.deriveLocalKey(masterPassword);
+        creds.localKey = localKey;
 
-    creds.localKey = localKey;
-    creds.remoteKey = remoteKey;
+        const remoteKey = crypto.deriveRemoteKey(masterPassword);
+        creds.remoteKey = remoteKey;
+    }
 
-    const cipher = await HttpApi.pullCipher(creds, httpParams);
+    let cipherText: string | null = null;
+    if (offline) {
+        cipherText = await offlineProvider.offlineCipher();
+    } else {
+        cipherText = await HttpApi.pullCipher(creds, httpParams);
+    }
+
+    const cipher = cipherText;
     return new Vault(creds, crypto, cipher, httpParams, config.demo);
 }
 
