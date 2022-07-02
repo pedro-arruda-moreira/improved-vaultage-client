@@ -5,7 +5,7 @@ import { IConfigCache } from './IConfigCache';
 import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
-import { IOfflineProvider } from './IOfflineProvider';
+import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
 
 export { IConfigCache } from './IConfigCache';
 export { Passwords } from './Passwords';
@@ -30,15 +30,15 @@ class NoOPSaltsCache implements IConfigCache {
 }
 
 // pedro-arruda-moreira: offline mode support
-class NoOPOfflineProvider implements IOfflineProvider {
+export class NoOPOfflineProvider implements IOfflineProvider {
     public static INSTANCE = new NoOPOfflineProvider();
-    public saveOfflineCipher(): Promise<void> {
-        throw new Error('Method not implemented.');
+    public saveOfflineCipher(_: string): Promise<void> {
+        return Promise.resolve();
     }
     public isRunningOffline(): Promise<boolean> {
         return Promise.resolve(false);
     }
-    public offlineCipher(): Promise<string> {
+    public getOfflineCipher(): Promise<string> {
         throw new Error('Method not implemented.');
     }
     public offlineSalt(): Promise<string> {
@@ -64,6 +64,7 @@ export async function login(
         // pedro-arruda-moreira: config cache
         httpParams?: IHttpParams,
         configCache: IConfigCache = NoOPSaltsCache.INSTANCE,
+        // pedro-arruda-moreira: offline mode support
         offlineProvider: IOfflineProvider = NoOPOfflineProvider.INSTANCE): Promise<Vault> {
 
     const creds = {
@@ -73,9 +74,12 @@ export async function login(
         remoteKey: 'null'
     } as ICredentials;
 
+    // pedro-arruda-moreira: offline mode support
+    const offlineEnabled = offlineProvider !== NoOPOfflineProvider.INSTANCE;
     const offline = await offlineProvider.isRunningOffline();
     let obtainedConfig: IVaultageConfig | null = null;
     if (offline) {
+        creds.serverURL = OFFLINE_URL;
         obtainedConfig = {
             version: 1,
             demo: false,
@@ -106,7 +110,7 @@ export async function login(
     const crypto = new Crypto(salts);
 
     if (offline) {
-        creds.localKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
+        creds.localKey = await Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
     } else {
         // possible optimization: compute the local key while the request is in the air
         const localKey = crypto.deriveLocalKey(masterPassword);
@@ -114,17 +118,21 @@ export async function login(
 
         const remoteKey = crypto.deriveRemoteKey(masterPassword);
         creds.remoteKey = remoteKey;
+
+        if (offlineEnabled) {
+            creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
+        }
     }
 
     let cipherText: string | null = null;
     if (offline) {
-        cipherText = await offlineProvider.offlineCipher();
+        cipherText = await offlineProvider.getOfflineCipher();
     } else {
         cipherText = await HttpApi.pullCipher(creds, httpParams);
     }
 
     const cipher = cipherText;
-    return new Vault(creds, crypto, cipher, httpParams, config.demo);
+    return new Vault(creds, crypto, cipher, offlineProvider, httpParams, config.demo);
 }
 
 export function _mockHttpRequests(fn: HttpRequestFunction): void {

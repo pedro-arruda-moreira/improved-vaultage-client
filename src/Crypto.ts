@@ -15,7 +15,7 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      * @param offlineSalt the offline salt
      */
-    public static deriveOfflineKey(masterPassword: string, offlineSalt: string): string {
+    public static async deriveOfflineKey(masterPassword: string, offlineSalt: string): Promise<string> {
         const masterHash = sjcl.hash.sha512.hash(masterPassword);
         return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash , offlineSalt, Crypto.OFFLINE_PBKDF2_DIFFICULTY));
     }

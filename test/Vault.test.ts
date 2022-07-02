@@ -1,3 +1,4 @@
+import { NoOPOfflineProvider } from 'improved-vaultage-client/src/vaultage';
 import { Crypto } from '../src/Crypto';
 import { HttpService, IHttpResponse } from '../src/HTTPService';
 import { ICredentials, Vault } from '../src/Vault';
@@ -30,12 +31,12 @@ describe('Vault.ts can', () => {
     });
 
     it('create an empty vault', () => {
-        const vault = new Vault(creds, crypto, undefined);
+        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
         expect(vault.getAllEntries().length).toBe(0);
     });
 
     it('can create a Vault with a mock API, which interacts with a fake server', async () => {
-        const vault = new Vault(creds, crypto, undefined);
+        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({
@@ -78,7 +79,7 @@ describe('Vault.ts can', () => {
     });
 
     it('can create a Vault with a mock API, and play with entries', async () => {
-        const vault = new Vault(creds, crypto, undefined);
+        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({

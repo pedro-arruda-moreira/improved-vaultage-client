@@ -1,7 +1,28 @@
+import { IOfflineProvider } from 'improved-vaultage-client/src/IOfflineProvider';
 import * as util from 'util';
 import * as vaultage from '../src/vaultage';
 // pedro-arruda-moreira: secure notes
 import { IVaultDBEntryAttrsImproved, Vault } from '../src/vaultage';
+
+let offline = false;
+let offlineCipher = '';
+const offlineSalt = '6c667df5395c49ee20617060627c24dd579dc59fee54d620e7211b3334e5e934';
+
+class SimpleOfflineProvider implements IOfflineProvider {
+    public isRunningOffline(): Promise<boolean> {
+        return Promise.resolve(offline);
+    }
+    public getOfflineCipher(): Promise<string> {
+        return Promise.resolve(offlineCipher);
+    }
+    public offlineSalt(): Promise<string> {
+        return Promise.resolve(offlineSalt);
+    }
+    public saveOfflineCipher(cipher: string): Promise<void> {
+        offlineCipher = cipher;
+        return Promise.resolve();
+    }
+}
 
 async function runIntegrationTest() {
     const serverUrl = 'http://localhost:3000/';
@@ -11,6 +32,10 @@ async function runIntegrationTest() {
 
     // create vault
     let vault = await vaultage.login(serverUrl, username, masterpwd);
+
+    if (vault.offline) {
+        fail(vault, 'Vault is in offline mode.');
+    }
 
     if (vault.getNbEntries() !== 0) {
         throw new Error('This integration test is meant to be run on a clean computer. Your DB is not empty. Aborting.');
@@ -40,6 +65,9 @@ async function runIntegrationTest() {
 
     vault = await vaultage.login(serverUrl, username, masterpwd);
 
+    if (vault.offline) {
+        fail(vault, 'Vault is in offline mode.');
+    }
     if (vault.getNbEntries() !== 1) {
         fail(vault, 'Could not get back the entry we just created.');
     }
@@ -122,8 +150,11 @@ async function runIntegrationTest() {
     // log out and pull again
     console.log('Logging out...');
 
-    vault = await vaultage.login(serverUrl, username, newMasterPassword);
+    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider());
 
+    if (vault.offline) {
+        fail(vault, 'Vault is in offline mode.');
+    }
     // check if the vault content is as expected
 
     if (vault.getNbEntries() !== 1) {
@@ -156,6 +187,47 @@ async function runIntegrationTest() {
 
     if (vault.getNbEntries() !== 0) {
         fail(vault, 'Could not delete the entry.');
+    }
+
+    console.log('adding another entry to test offline mode.');
+
+    vault.addEntry(newEntry);
+    await vault.save();
+    offline = true;
+
+    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider());
+
+    if (!vault.offline) {
+        fail(vault, 'Vault is not in offline mode.');
+    }
+
+    if (vault.getNbEntries() !== 1) {
+        fail(vault, 'Could not get back the entry in offline mode.');
+    }
+
+    const e4 = vault.getEntry('0');
+
+    if (e4.title !== newEntry.title) {
+        fail(vault, 'The fetched entry has a different title than the created entry.');
+    }
+    if (e4.login !== newEntry.login) {
+        fail(vault, 'The fetched entry has a different login than the created entry.');
+    }
+    if (e4.password !== newEntry.password) {
+        fail(vault, 'The fetched entry has a different password than the created entry.');
+    }
+    // pedro-arruda-moreira: secure notes
+    if (e4.itemUrl !== newEntry.itemUrl) {
+        fail(vault, 'The fetched entry has a different url than the created entry.');
+    }
+    // pedro-arruda-moreira: secure notes
+    if (e4.secureNoteText !== newEntry.secureNoteText) {
+        fail(vault, 'The fetched entry has a different secure note than the created entry.');
+    }
+
+    console.log(`offline vault: ${offlineCipher}`);
+    if (offlineCipher === '') {
+        fail(vault, 'The offlineCipher is empty.');
     }
 
     console.log('Everything went well ! Test OK.');
