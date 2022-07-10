@@ -8,7 +8,8 @@
         "build": "webpack",
         "clean": "rimraf dist/",
         "lint": "tslint -p .",
-        "test": "npm run lint && cross-env NODE_PATH=.. jest && ts-node test/integration_test.ts",
+        "unit-test": "npm run lint && cross-env NODE_PATH=.. jest",
+        "test": "npm run unit-test && ts-node test/integration_test.ts",
         "watch": "cross-env NODE_PATH=.. jest --watch",
         "rebuild-test": "npm run clean && rimraf node_modules/ && npm install && npm install --save-dev && npm run build && npm run test"
     },
