@@ -132,7 +132,7 @@ export async function login(
     }
 
     const cipher = cipherText;
-    return new Vault(creds, crypto, cipher, offlineProvider, httpParams, config.demo);
+    return await Vault.build(creds, crypto, cipher, offlineProvider, httpParams, config.demo);
 }
 
 export function _mockHttpRequests(fn: HttpRequestFunction): void {

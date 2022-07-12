@@ -46,6 +46,17 @@ const fromBase64: (text: string) => string = (b64) => {
  * });
  */
 export class Vault {
+
+    public static async build(creds: ICredentials, crypto: Crypto, cipher: string | undefined, offlineProvider: IOfflineProvider,
+                              httpParams?: IHttpParams, demoMode?: boolean) {
+        const newVault = new Vault(creds, crypto, offlineProvider, httpParams, demoMode);
+        if (cipher) {
+            await newVault._setCipher(creds, cipher);
+            newVault._saveOfflineVault();
+        }
+        return newVault;
+    }
+
     private _creds: ICredentials;
     private _crypto: Crypto;
     private _db: VaultDB;
@@ -54,8 +65,8 @@ export class Vault {
     private _isServerInDemoMode: boolean;
     private _offlineProvider: IOfflineProvider;
 
-    constructor(creds: ICredentials, crypto: Crypto, cipher: string | undefined, offlineProvider: IOfflineProvider,
-                httpParams?: IHttpParams, demoMode?: boolean) {
+    private constructor(creds: ICredentials, crypto: Crypto, offlineProvider: IOfflineProvider,
+                        httpParams?: IHttpParams, demoMode?: boolean) {
         this._creds = { ...creds };
         this._crypto = crypto;
         this._db = new VaultDB({});
@@ -64,10 +75,6 @@ export class Vault {
         this._offlineProvider = offlineProvider;
         if (demoMode === true) {
             this._isServerInDemoMode = true;
-        }
-        if (cipher) {
-            this._setCipher(creds, cipher);
-            this._saveOfflineVault();
         }
     }
 
@@ -368,16 +375,16 @@ export class Vault {
             newRemoteKey,
             cipher,
             this._lastFingerprint,
-            fingerprint,
+            await fingerprint,
             this._httpParams);
 
-        this._lastFingerprint = fingerprint;
+        this._lastFingerprint = await fingerprint;
     }
 
-    private _setCipher(creds: ICredentials, cipher: string): void {
+    private async _setCipher(creds: ICredentials, cipher: string): Promise<void> {
         const plain = this._crypto.decrypt(creds.localKey, cipher);
         this._db = VaultDB.deserialize(plain);
-        this._lastFingerprint = this._crypto.getFingerprint(plain, creds.localKey);
+        this._lastFingerprint = await this._crypto.getFingerprint(plain, creds.localKey);
     }
 
     /**

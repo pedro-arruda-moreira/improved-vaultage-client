@@ -93,7 +93,7 @@ export class Crypto {
      * @param plain the serialized vault's plaintext
      * @param localKey the local key
      */
-    public getFingerprint(plain: string, localKey: string): string {
+    public getFingerprint(plain: string, localKey: string): Promise<string> {
         // We want to achieve two results:
         // 1. Ensure that we don't push old content over some newer content
         // 2. Prevent unauthorized pushes even if the remote key was compromized
@@ -105,6 +105,6 @@ export class Crypto {
         // The localKey is already derived from the username, some per-deployment salt and
         // the master password so using it as a salt here should be enough to show that we know
         // all of the above information.
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(plain, localKey, this.PBKDF2_DIFFICULTY));
+        return Crypto.tryDeriveWithBestApi(plain, localKey, this.PBKDF2_DIFFICULTY, false);
     }
 }

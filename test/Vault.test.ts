@@ -51,8 +51,8 @@ describe('Vault.ts can', () => {
         HttpService.mock(mockAPI);
     });
 
-    it('create an empty vault', () => {
-        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
+    it('create an empty vault', async () => {
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
         expect(vault.getAllEntries().length).toBe(0);
     });
 
@@ -60,7 +60,7 @@ describe('Vault.ts can', () => {
         const offlineCreds = deepCopy(creds);
         offlineCreds.serverURL = OFFLINE_URL;
         offlineCreds.offlineKey = Promise.resolve('the_offline_key');
-        const vault = new Vault(offlineCreds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
+        const vault = await Vault.build(offlineCreds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
         expect(vault.getAllEntries().length).toBe(0);
         expect(vault.offline).toBe(true);
         expect(vault.serverURL).toBe(OFFLINE_URL);
@@ -123,7 +123,7 @@ describe('Vault.ts can', () => {
     it('can create a Vault with a mock API, which interacts with a fake server and saves the vault for offline use', async () => {
         const offlineCreds = deepCopy(creds);
         offlineCreds.offlineKey = Promise.resolve('the_offline_key');
-        const vault = new Vault(offlineCreds, crypto, undefined, new MockOfflineProvider());
+        const vault = await Vault.build(offlineCreds, crypto, undefined, new MockOfflineProvider());
         expect(vault.offline).toBe(false);
 
         // add one entry
@@ -168,7 +168,7 @@ describe('Vault.ts can', () => {
     });
 
     it('can create a Vault with a mock API, which interacts with a fake server', async () => {
-        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({
@@ -211,7 +211,7 @@ describe('Vault.ts can', () => {
     });
 
     it('can create a Vault with a mock API, and play with entries', async () => {
-        const vault = new Vault(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({

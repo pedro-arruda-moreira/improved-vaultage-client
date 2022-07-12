@@ -16,6 +16,8 @@ const EXPECTED_LOCAL_KEY = '93ff3db4b46bf6e63885f0d37efcac689970947c49cd9a04e66c
 const EXPECTED_REMOTE_KEY = '8aefc63391ce6eb2e706bf92d0af026189adfe02d2bc757ca5511112c8bdb2a8';
 const EXPECTED_OFFLINE_KEY = '8a895f56fe4d16e2b88480e500ae6c195c2a7318c72aebf0642fb0a24bdbde6f';
 
+const EXPECTED_FINGERPRINT = '26cf88bef1397343f38ebdef0452bef1a744a3fbefd3248f1095e73b3dec6e46';
+
 describe('Crypto.ts', () => {
     let crypto: Crypto;
 
@@ -96,30 +98,37 @@ describe('Crypto.ts', () => {
             const masterKey = generateString(20);
             it('works on a random database', async () => {
                 const localKey = crypto.deriveLocalKey(masterKey);
-                const fingerprint = crypto.getFingerprint(await localKey, database);
+                const fingerprint = await crypto.getFingerprint(await localKey, database);
                 expect(fingerprint).not.toEqual(database);
             });
             it('is deterministic', async () => {
                 const localKey = crypto.deriveLocalKey(masterKey);
-                const fingerprint = crypto.getFingerprint(await localKey, database);
-                const fingerprint2 = crypto.getFingerprint(await localKey, database);
+                const fingerprint = await crypto.getFingerprint(await localKey, database);
+                const fingerprint2 = await crypto.getFingerprint(await localKey, database);
                 expect(fingerprint).toEqual(fingerprint2);
             });
             it('REALLY is deterministic', async () => {
                 const myDatabase = '{}';
                 const myMasterKey = 'DETERMINISTIC!';
                 const localKey = crypto.deriveLocalKey(myMasterKey);
-                const fingerprint = crypto.getFingerprint(myDatabase, await localKey);
-                const fingerprint2 = crypto.getFingerprint(myDatabase, await localKey);
-                expect(fingerprint).toEqual('26cf88bef1397343f38ebdef0452bef1a744a3fbefd3248f1095e73b3dec6e46');
-                expect(fingerprint2).toEqual('26cf88bef1397343f38ebdef0452bef1a744a3fbefd3248f1095e73b3dec6e46');
+                const fingerprint = await crypto.getFingerprint(myDatabase, await localKey);
+                const fingerprint2 = await crypto.getFingerprint(myDatabase, await localKey);
+                const legacyFingerprint = await new LegacyCryptoAPI().deriveKey(myDatabase,
+                                                                                await localKey,
+                                                                                crypto.PBKDF2_DIFFICULTY,
+                                                                                false);
+                const fastFingerprint = await new FastCryptoAPI().deriveKey(myDatabase, await localKey, crypto.PBKDF2_DIFFICULTY, false);
+                expect(legacyFingerprint).toEqual(EXPECTED_FINGERPRINT);
+                expect(fastFingerprint).toEqual(EXPECTED_FINGERPRINT);
+                expect(fingerprint).toEqual(EXPECTED_FINGERPRINT);
+                expect(fingerprint2).toEqual(EXPECTED_FINGERPRINT);
                 expect(fingerprint2).toEqual(fingerprint);
             });
             it('depends on the local key', async () => {
                 const localKey = crypto.deriveLocalKey(masterKey);
                 const localKey2 = crypto.deriveLocalKey(masterKey + '2');
-                const fingerprint = crypto.getFingerprint(await localKey, database);
-                const fingerprint2 = crypto.getFingerprint(await localKey2, database);
+                const fingerprint = await crypto.getFingerprint(await localKey, database);
+                const fingerprint2 = await crypto.getFingerprint(await localKey2, database);
                 expect(fingerprint).not.toEqual(fingerprint2);
             });
         }
