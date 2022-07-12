@@ -4,8 +4,8 @@ function createEncoder(): TextEncoder {
     try {
         return new window.TextEncoder();
     } catch (e) {
-        // tslint:disable-next-line:no-var-requires
-        return new (require('util').TextEncoder)() as TextEncoder;
+        // tslint:disable-next-line
+        return new (eval('require(\'util\')').TextEncoder)() as TextEncoder;
     }
 }
 
@@ -13,8 +13,8 @@ function getCrypto(): SubtleCrypto {
     try {
         return crypto.subtle;
     } catch (e) {
-        // tslint:disable-next-line:no-var-requires
-        return (require('crypto').webcrypto.subtle) as SubtleCrypto;
+        // tslint:disable-next-line
+        return (eval('require(\'crypto\')').webcrypto.subtle) as SubtleCrypto;
     }
 }
 
