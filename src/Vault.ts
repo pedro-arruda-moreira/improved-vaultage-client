@@ -357,7 +357,7 @@ export class Vault {
     private async _pullCipher(creds: ICredentials): Promise<void> {
         const cipher = await HttpApi.pullCipher(creds, this._httpParams);
         if (cipher) {
-            this._setCipher(creds, cipher);
+            await this._setCipher(creds, cipher);
         } else {
             // Create an empty DB if there is nothing on the server.
             this._db = new VaultDB({});
