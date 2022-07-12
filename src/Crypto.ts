@@ -12,6 +12,7 @@ const OFFLINE_PBKDF2_DIFFICULTY: number = 1048576;
  * Handles the crypto stuff
  */
 export class Crypto {
+
     // pedro-arruda-moreira: offline mode support
     /**
      * Returns the offline key for a given offline salt and master password.
@@ -20,7 +21,15 @@ export class Crypto {
      * @param offlineSalt the offline salt
      */
     public static async deriveOfflineKey(masterPassword: string, offlineSalt: string): Promise<string> {
-        return new FastCryptoAPI().deriveKey(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
+        return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
+    }
+
+    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number) {
+        try {
+            return new FastCryptoAPI().deriveKey(password, salt, difficulty);
+        } catch (e) {
+            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty);
+        }
     }
 
     public PBKDF2_DIFFICULTY: number = 32768;
@@ -35,7 +44,7 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      */
     public deriveLocalKey(masterPassword: string): Promise<string> {
-        return new LegacyCryptoAPI().deriveKey(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY);
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**
@@ -44,7 +53,7 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      */
     public deriveRemoteKey(masterPassword: string): Promise<string> {
-        return new LegacyCryptoAPI().deriveKey(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY);
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**
@@ -79,11 +88,10 @@ export class Crypto {
      * Computes the fingerprint of a plaintext.
      *
      * Used to prove to our past-self that we have access to the local key and the latest
-     * vault's plaintext and and challenge our future-self to do the same.
+     * vault's plaintext and challenge our future-self to do the same.
      *
      * @param plain the serialized vault's plaintext
      * @param localKey the local key
-     * @param username the username is needed to salt the fingerprint
      */
     public getFingerprint(plain: string, localKey: string): string {
         // We want to achieve two results:

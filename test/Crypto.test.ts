@@ -1,33 +1,61 @@
+import { FastCryptoAPI } from 'improved-vaultage-client/src/crypto-impl/FastCryptoAPI';
+import { LegacyCryptoAPI } from 'improved-vaultage-client/src/crypto-impl/LegacyCryptoAPI';
 import { Crypto } from '../src/Crypto';
 
 function generateString(len: number) {
     return Math.random().toString(36).substr(2, 2 + len);
 }
 
+const DIFFICULTY = 1;
+
+const REMOTE_SALT = '0123456789';
+const LOCAL_SALT = 'deadbeef';
+const OFFLINE_SALT = 'my-offline-salt123';
+
+const EXPECTED_LOCAL_KEY = '93ff3db4b46bf6e63885f0d37efcac689970947c49cd9a04e66cace32b258b0e';
+const EXPECTED_REMOTE_KEY = '8aefc63391ce6eb2e706bf92d0af026189adfe02d2bc757ca5511112c8bdb2a8';
+const EXPECTED_OFFLINE_KEY = '8a895f56fe4d16e2b88480e500ae6c195c2a7318c72aebf0642fb0a24bdbde6f';
+
 describe('Crypto.ts', () => {
     let crypto: Crypto;
 
     beforeEach(() => {
         crypto = new Crypto({
-            LOCAL_KEY_SALT: 'deadbeef',
-            REMOTE_KEY_SALT: '0123456789',
+            LOCAL_KEY_SALT: LOCAL_SALT,
+            REMOTE_KEY_SALT: REMOTE_SALT,
         });
-        crypto.PBKDF2_DIFFICULTY = 1;
+        crypto.PBKDF2_DIFFICULTY = DIFFICULTY;
     });
 
     describe('the key derivation function', () => {
         const masterKey = 'ucantseeme';
-        it('gives a consistent local key', async () => {
+        it('gives a consistent local key - Crypto', async () => {
             const localKey = crypto.deriveLocalKey(masterKey);
-            expect(await localKey).toEqual('93ff3db4b46bf6e63885f0d37efcac689970947c49cd9a04e66cace32b258b0e');
+            expect(await localKey).toEqual(EXPECTED_LOCAL_KEY);
         });
-        it('gives a consistent remote key', async () => {
+        it('gives a consistent remote key - Crypto', async () => {
             const remoteKey = crypto.deriveRemoteKey(masterKey);
-            expect(await remoteKey).toEqual('8aefc63391ce6eb2e706bf92d0af026189adfe02d2bc757ca5511112c8bdb2a8');
+            expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
         });
-        it('gives a consistent offline key', async () => {
-            const offlineKey = Crypto.deriveOfflineKey(masterKey, 'my-offline-salt123');
-            expect(await offlineKey).toEqual('484895105c951be863c792b98f329dd71f800625465784185a840d226f98670a');
+        it('gives a consistent offline key - Crypto', async () => {
+            const offlineKey = Crypto.deriveOfflineKey(masterKey, OFFLINE_SALT);
+            expect(await offlineKey).toEqual(EXPECTED_OFFLINE_KEY);
+        });
+        it('gives a consistent local key - Legacy', async () => {
+            const localKey = new LegacyCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY);
+            expect(await localKey).toEqual(EXPECTED_LOCAL_KEY);
+        });
+        it('gives a consistent remote key - Legacy', async () => {
+            const remoteKey = new LegacyCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY);
+            expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
+        });
+        it('gives a consistent local key - Fast', async () => {
+            const localKey = new FastCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY);
+            expect(await localKey).toEqual(EXPECTED_LOCAL_KEY);
+        });
+        it('gives a consistent remote key - Fast', async () => {
+            const remoteKey = new FastCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY);
+            expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
         });
     });
 

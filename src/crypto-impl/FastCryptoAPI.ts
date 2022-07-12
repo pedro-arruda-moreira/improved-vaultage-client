@@ -24,35 +24,35 @@ function toHexString(bytes: Uint8Array) {
 
 /**
  * @param {string} strPassword The clear text password
- * @param {Uint8Array} salt    The salt
+ * @param {string} salt    The salt
  * @param {string} hash        The Hash model, e.g. ["SHA-256" | "SHA-512"]
  * @param {int} iterations     Number of iterations
  * @param {int} len            The output length in bytes, e.g. 16
  */
-async function pbkdf2(strPassword: string, salt: Uint8Array, hash: string, iterations: number, len: number): Promise<Uint8Array> {
-    const password = createEncoder().encode(strPassword);
+async function pbkdf2(strPassword: string, salt: string, hash: string, iterations: number, len: number): Promise<Uint8Array> {
+    const encoder = createEncoder();
+    const crypto = getCrypto();
 
-    const ik = await getCrypto().importKey('raw', password,
-        'PBKDF2',
-        false, ['deriveBits']
-    );
-    const dk = await getCrypto().deriveBits(
+    const passwordHash = await crypto.digest('SHA-512', encoder.encode(strPassword));
+
+    const importedKey = await crypto.importKey('raw', new Uint8Array(passwordHash), 'PBKDF2', false, ['deriveBits']);
+    const derivedKey = await crypto.deriveBits(
         {
             name: 'PBKDF2',
             hash: hash,
-            salt: salt,
+            salt: encoder.encode(salt),
             iterations: iterations
         },
-        ik,
+        importedKey,
         len * 8
     );  // Bytes to bits
 
-    return new Uint8Array(dk);
+    return new Uint8Array(derivedKey);
 }
 
 
 export class FastCryptoAPI implements ICryptoAPI {
     public async deriveKey(password: string, salt: string, difficulty: number): Promise<string> {
-        return toHexString(await pbkdf2(password, createEncoder().encode(salt), 'SHA-512', difficulty, 32));
+        return toHexString(await pbkdf2(password, salt, 'SHA-256', difficulty, 32));
     }
 }
