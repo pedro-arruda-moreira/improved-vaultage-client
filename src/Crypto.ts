@@ -24,11 +24,11 @@ export class Crypto {
         return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
     }
 
-    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number) {
+    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
         try {
-            return new FastCryptoAPI().deriveKey(password, salt, difficulty);
+            return new FastCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
         } catch (e) {
-            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty);
+            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
         }
     }
 

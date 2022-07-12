@@ -29,13 +29,18 @@ function toHexString(bytes: Uint8Array) {
  * @param {int} iterations     Number of iterations
  * @param {int} len            The output length in bytes, e.g. 16
  */
-async function pbkdf2(strPassword: string, salt: string, hash: string, iterations: number, len: number): Promise<Uint8Array> {
+async function pbkdf2(strPassword: string, salt: string, hash: string,
+                      iterations: number, len: number, useSha512: boolean): Promise<Uint8Array> {
     const encoder = createEncoder();
     const crypto = getCrypto();
 
-    const passwordHash = await crypto.digest('SHA-512', encoder.encode(strPassword));
+    let dataArray: Uint8Array = encoder.encode(strPassword);
+    if (useSha512) {
+        dataArray = new Uint8Array(await crypto.digest('SHA-512', dataArray));
+    }
 
-    const importedKey = await crypto.importKey('raw', new Uint8Array(passwordHash), 'PBKDF2', false, ['deriveBits']);
+
+    const importedKey = await crypto.importKey('raw', dataArray, 'PBKDF2', false, ['deriveBits']);
     const derivedKey = await crypto.deriveBits(
         {
             name: 'PBKDF2',
@@ -52,7 +57,7 @@ async function pbkdf2(strPassword: string, salt: string, hash: string, iteration
 
 
 export class FastCryptoAPI implements ICryptoAPI {
-    public async deriveKey(password: string, salt: string, difficulty: number): Promise<string> {
-        return toHexString(await pbkdf2(password, salt, 'SHA-256', difficulty, 32));
+    public async deriveKey(password: string, salt: string, difficulty: number, useSha512: boolean): Promise<string> {
+        return toHexString(await pbkdf2(password, salt, 'SHA-256', difficulty, 32, useSha512));
     }
 }

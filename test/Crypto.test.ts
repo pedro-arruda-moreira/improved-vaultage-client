@@ -42,19 +42,19 @@ describe('Crypto.ts', () => {
             expect(await offlineKey).toEqual(EXPECTED_OFFLINE_KEY);
         });
         it('gives a consistent local key - Legacy', async () => {
-            const localKey = new LegacyCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY);
+            const localKey = new LegacyCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY, true);
             expect(await localKey).toEqual(EXPECTED_LOCAL_KEY);
         });
         it('gives a consistent remote key - Legacy', async () => {
-            const remoteKey = new LegacyCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY);
+            const remoteKey = new LegacyCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY, true);
             expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
         });
         it('gives a consistent local key - Fast', async () => {
-            const localKey = new FastCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY);
+            const localKey = new FastCryptoAPI().deriveKey(masterKey, LOCAL_SALT, DIFFICULTY, true);
             expect(await localKey).toEqual(EXPECTED_LOCAL_KEY);
         });
         it('gives a consistent remote key - Fast', async () => {
-            const remoteKey = new FastCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY);
+            const remoteKey = new FastCryptoAPI().deriveKey(masterKey, REMOTE_SALT, DIFFICULTY, true);
             expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
         });
     });
