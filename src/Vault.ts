@@ -167,19 +167,19 @@ export class Vault {
         // first, let's do a request with (oldRemoteKey, newLocalKey), and provide new_password=newRemoteKey.
         // This will encrypt the cipher with the newLocalKey, instruct the server to use newRemoteKey for the
         // *** subsequent *** updates; of course, this message is still authenticated with oldRemoteKey
-        newCredentials.localKey = newLocalKey;
+        newCredentials.localKey = await newLocalKey;
 
-        await this._pushCipher(newCredentials, newRemoteKey);
+        await this._pushCipher(newCredentials, await newRemoteKey);
 
 
         // at this point, the server accepted the update. Let's confirm it by trying to pull with the new
         // accesses
 
-        newCredentials.remoteKey = newRemoteKey;
+        newCredentials.remoteKey = await newRemoteKey;
         await this._pullCipher(newCredentials);
 
         // everything went fine, now we use the new credentials
-        newCredentials.remoteKey = newRemoteKey;
+        newCredentials.remoteKey = await newRemoteKey;
         this._setCredentials(newCredentials);
         this._saveOfflineVault();
     }

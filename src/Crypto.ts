@@ -1,9 +1,13 @@
+import { FastCryptoAPI } from './crypto-impl/FastCryptoAPI';
+import { LegacyCryptoAPI } from './crypto-impl/LegacyCryptoAPI';
 import { ISaltsConfig } from './interface';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
 // tslint:disable-next-line:no-var-requires
 const sjcl = require('../lib/sjcl') as any;
 
+// pedro-arruda-moreira: offline mode support
+const OFFLINE_PBKDF2_DIFFICULTY: number = 1048576;
 /**
  * Handles the crypto stuff
  */
@@ -16,16 +20,13 @@ export class Crypto {
      * @param offlineSalt the offline salt
      */
     public static async deriveOfflineKey(masterPassword: string, offlineSalt: string): Promise<string> {
-        const masterHash = sjcl.hash.sha512.hash(masterPassword);
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash , offlineSalt, Crypto.OFFLINE_PBKDF2_DIFFICULTY));
+        return new FastCryptoAPI().deriveKey(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
     }
 
-    // pedro-arruda-moreira: offline mode support
-    private static OFFLINE_PBKDF2_DIFFICULTY: number = 262144;
     public PBKDF2_DIFFICULTY: number = 32768;
 
     constructor(
-            private _salts: ISaltsConfig) {
+        private _salts: ISaltsConfig) {
     }
 
     /**
@@ -33,9 +34,8 @@ export class Crypto {
      *
      * @param masterPassword Plaintext of the master password
      */
-    public deriveLocalKey(masterPassword: string): string {
-        const masterHash = sjcl.hash.sha512.hash(masterPassword);
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash , this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY));
+    public deriveLocalKey(masterPassword: string): Promise<string> {
+        return new LegacyCryptoAPI().deriveKey(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**
@@ -43,9 +43,8 @@ export class Crypto {
      *
      * @param masterPassword Plaintext of the master password
      */
-    public deriveRemoteKey(masterPassword: string): string {
-        const masterHash = sjcl.hash.sha512.hash(masterPassword);
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY));
+    public deriveRemoteKey(masterPassword: string): Promise<string> {
+        return new LegacyCryptoAPI().deriveKey(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**

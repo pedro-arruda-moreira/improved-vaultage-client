@@ -114,10 +114,10 @@ export async function login(
     } else {
         // possible optimization: compute the local key while the request is in the air
         const localKey = crypto.deriveLocalKey(masterPassword);
-        creds.localKey = localKey;
+        creds.localKey = await localKey;
 
         const remoteKey = crypto.deriveRemoteKey(masterPassword);
-        creds.remoteKey = remoteKey;
+        creds.remoteKey = await remoteKey;
 
         if (offlineEnabled) {
             creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
