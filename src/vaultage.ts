@@ -7,6 +7,7 @@ import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
 
+export { IOfflineProvider };
 export { IConfigCache } from './IConfigCache';
 export { Passwords } from './Passwords';
 export { Vault } from './Vault';
