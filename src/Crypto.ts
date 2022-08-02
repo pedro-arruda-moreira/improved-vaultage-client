@@ -1,18 +1,41 @@
+import { FastCryptoAPI } from './crypto-impl/FastCryptoAPI';
+import { LegacyCryptoAPI } from './crypto-impl/LegacyCryptoAPI';
 import { ISaltsConfig } from './interface';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
 // tslint:disable-next-line:no-var-requires
 const sjcl = require('../lib/sjcl') as any;
 
+// pedro-arruda-moreira: offline mode support
+const OFFLINE_PBKDF2_DIFFICULTY: number = 1048576;
 /**
  * Handles the crypto stuff
  */
 export class Crypto {
 
+    // pedro-arruda-moreira: offline mode support
+    /**
+     * Returns the offline key for a given offline salt and master password.
+     *
+     * @param masterPassword Plaintext of the master password
+     * @param offlineSalt the offline salt
+     */
+    public static async deriveOfflineKey(masterPassword: string, offlineSalt: string): Promise<string> {
+        return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
+    }
+
+    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
+        try {
+            return new FastCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
+        } catch (e) {
+            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
+        }
+    }
+
     public PBKDF2_DIFFICULTY: number = 32768;
 
     constructor(
-            private _salts: ISaltsConfig) {
+        private _salts: ISaltsConfig) {
     }
 
     /**
@@ -20,9 +43,8 @@ export class Crypto {
      *
      * @param masterPassword Plaintext of the master password
      */
-    public deriveLocalKey(masterPassword: string): string {
-        const masterHash = sjcl.hash.sha512.hash(masterPassword);
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash , this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY));
+    public deriveLocalKey(masterPassword: string): Promise<string> {
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**
@@ -30,9 +52,8 @@ export class Crypto {
      *
      * @param masterPassword Plaintext of the master password
      */
-    public deriveRemoteKey(masterPassword: string): string {
-        const masterHash = sjcl.hash.sha512.hash(masterPassword);
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(masterHash, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY));
+    public deriveRemoteKey(masterPassword: string): Promise<string> {
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY);
     }
 
     /**
@@ -67,13 +88,12 @@ export class Crypto {
      * Computes the fingerprint of a plaintext.
      *
      * Used to prove to our past-self that we have access to the local key and the latest
-     * vault's plaintext and and challenge our future-self to do the same.
+     * vault's plaintext and challenge our future-self to do the same.
      *
      * @param plain the serialized vault's plaintext
      * @param localKey the local key
-     * @param username the username is needed to salt the fingerprint
      */
-    public getFingerprint(plain: string, localKey: string): string {
+    public getFingerprint(plain: string, localKey: string): Promise<string> {
         // We want to achieve two results:
         // 1. Ensure that we don't push old content over some newer content
         // 2. Prevent unauthorized pushes even if the remote key was compromized
@@ -85,6 +105,6 @@ export class Crypto {
         // The localKey is already derived from the username, some per-deployment salt and
         // the master password so using it as a salt here should be enough to show that we know
         // all of the above information.
-        return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(plain, localKey, this.PBKDF2_DIFFICULTY));
+        return Crypto.tryDeriveWithBestApi(plain, localKey, this.PBKDF2_DIFFICULTY, false);
     }
 }

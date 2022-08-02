@@ -1,3 +1,6 @@
+import { IOfflineProvider, OFFLINE_URL } from 'improved-vaultage-client/src/IOfflineProvider';
+import { deepCopy } from 'improved-vaultage-client/src/utils';
+import { NoOPOfflineProvider } from 'improved-vaultage-client/src/vaultage';
 import { Crypto } from '../src/Crypto';
 import { HttpService, IHttpResponse } from '../src/HTTPService';
 import { ICredentials, Vault } from '../src/Vault';
@@ -20,6 +23,25 @@ function response<T>(data: T): IHttpResponse<T> {
     };
 }
 
+let offlineCipher = '';
+const offlineSalt = 'the_offline_salt';
+
+class MockOfflineProvider implements IOfflineProvider {
+    public isRunningOffline(): Promise<boolean> {
+        return Promise.resolve(false);
+    }
+    public getOfflineCipher(): Promise<string> {
+        return Promise.resolve(offlineCipher);
+    }
+    public offlineSalt(): Promise<string> {
+        return Promise.resolve(offlineSalt);
+    }
+    public saveOfflineCipher(cipher: string): Promise<void> {
+        offlineCipher = cipher;
+        return Promise.resolve();
+    }
+}
+
 let mockAPI: jest.Mock;
 
 describe('Vault.ts can', () => {
@@ -29,13 +51,124 @@ describe('Vault.ts can', () => {
         HttpService.mock(mockAPI);
     });
 
-    it('create an empty vault', () => {
-        const vault = new Vault(creds, crypto, undefined);
+    it('create an empty vault', async () => {
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
         expect(vault.getAllEntries().length).toBe(0);
     });
 
+    it('can create an offline vault', async () => {
+        const offlineCreds = deepCopy(creds);
+        offlineCreds.serverURL = OFFLINE_URL;
+        offlineCreds.offlineKey = Promise.resolve('the_offline_key');
+        const vault = await Vault.build(offlineCreds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
+        expect(vault.getAllEntries().length).toBe(0);
+        expect(vault.offline).toBe(true);
+        expect(vault.serverURL).toBe(OFFLINE_URL);
+        // try to pull vault, must fail
+        try {
+            await vault.pull();
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+        // try to save vault, must fail
+        try {
+            await vault.save();
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+        // try to update one entry, must fail
+        try {
+            vault.updateEntry('1', {
+                title: 'Hello',
+                login: 'Bob',
+                password: 'zephyr',
+                itemUrl: 'http://example.com',
+                secureNoteText: ''
+            });
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+        // try to remove one entry, must fail
+        try {
+            vault.removeEntry('1');
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+        // try to add one entry, must fail
+        try {
+            vault.addEntry({
+                title: 'Hello',
+                login: 'Bob',
+                password: 'zephyr',
+                itemUrl: 'http://example.com',
+                secureNoteText: ''
+            });
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+        // try to change master password, must fail
+        try {
+            await vault.updateMasterPassword('nopenope');
+            fail('did not fail!');
+        } catch (e) {
+            console.log('ok');
+        }
+    });
+
+    it('can create a Vault with a mock API, which interacts with a fake server and saves the vault for offline use', async () => {
+        const offlineCreds = deepCopy(creds);
+        offlineCreds.offlineKey = Promise.resolve('the_offline_key');
+        const vault = await Vault.build(offlineCreds, crypto, undefined, new MockOfflineProvider());
+        expect(vault.offline).toBe(false);
+
+        // add one entry
+        vault.addEntry({
+            title: 'Hello',
+            login: 'Bob',
+            password: 'zephyr',
+            itemUrl: 'http://example.com',
+            secureNoteText: ''
+        });
+
+        expect(vault.getAllEntries().length).toBe(1);
+        expect(mockAPI).not.toHaveBeenCalled();
+
+        mockAPI.mockImplementationOnce((_parameters) => {
+            // encrypted with master password 'passwd'. DB contains a single object Object:
+            // {id: 0, title: 'Hello', url: 'http://example.com', login: 'Bob', password: 'zephyr',
+            // created: 'Sat, 28 Oct 2017 12:41:50 GMT', updated: 'Sat, 28 Oct 2017 12:41:50 GMT'}
+            return Promise.resolve(response({
+                error: false,
+                // tslint:disable-next-line:max-line-length
+                data: '{"iv":"32CPCDg5TZfwMxTAkoxNnA==","v":1,"iter":10000,;"ks";:128,;"ts";:64,;"mode";:"ccm",;"adata";:"",;"cipher";:"aes",;"salt";:"2xgYuLeaI70=",;"ct";:"VP8hRnz0h71X0AycacRmDZVy6eCjglxTMGm\/MgFxDv3YiaSHMaIxfX2Krx6IDmHZGs1KLCmZWpgqW+NxUAdo6iIhTE7yQ2+JPY4iyvtEdvCJpMY9hGPxLACFC7i7JWLkNOSgeIOj9lO5SJBVtE5DASXfW68GZjTM0rc6PevuWQyAwwTwlnoLxQivodU0hH0w6LeUDXbpPtZGbP2vmiNuFs9haj1VRhrnHFUwRUTY\/mSE1JtClMvhjwjyfTYQdXjGA2qr9XBMiQWNFkA=";}'
+            }));
+        });
+
+        // save the current vault
+        await vault.save();
+
+        expect(mockAPI).toHaveBeenCalledTimes(1);
+        expect(mockAPI).toHaveBeenCalledWith(expect.objectContaining({
+            url: 'http://url/john%20cena/the_remote_key/vaultage_api',
+            method: 'POST',
+        }));
+
+        const entry = vault.getEntry('0');
+        expect(entry.title).toEqual('Hello');
+        expect(entry.itemUrl).toEqual('http://example.com');
+        expect(entry.login).toEqual('Bob');
+        expect(entry.password).toEqual('zephyr');
+        expect(entry.secureNoteText).toEqual('');
+        expect(offlineCipher).not.toBe('');
+    });
+
     it('can create a Vault with a mock API, which interacts with a fake server', async () => {
-        const vault = new Vault(creds, crypto, undefined);
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({
@@ -78,7 +211,7 @@ describe('Vault.ts can', () => {
     });
 
     it('can create a Vault with a mock API, and play with entries', async () => {
-        const vault = new Vault(creds, crypto, undefined);
+        const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE);
 
         // add one entry
         vault.addEntry({

@@ -1,3 +1,4 @@
+import { IOfflineProvider } from 'improved-vaultage-client/src/IOfflineProvider';
 import { IErrorPushPullResponse, IVaultageConfig } from 'vaultage-protocol';
 
 import { HttpService, IHttpResponse } from '../src/HTTPService';
@@ -29,6 +30,25 @@ class TestConfigCache implements IConfigCache {
     public loadConfig(_: string): IVaultageConfig | null {
         console.log(JSON.stringify(obtainedConfig));
         return obtainedConfig;
+    }
+}
+
+let offlineCipher = '';
+const offlineSalt = 'the_offline_salt';
+
+class MockOfflineProvider implements IOfflineProvider {
+    public isRunningOffline(): Promise<boolean> {
+        return Promise.resolve(false);
+    }
+    public getOfflineCipher(): Promise<string> {
+        return Promise.resolve(offlineCipher);
+    }
+    public offlineSalt(): Promise<string> {
+        return Promise.resolve(offlineSalt);
+    }
+    public saveOfflineCipher(cipher: string): Promise<void> {
+        offlineCipher = cipher;
+        return Promise.resolve();
     }
 }
 
@@ -100,6 +120,45 @@ describe('login', () => {
         });
 
         expect(vault).toBeInstanceOf(Vault);
+    });
+
+    // pedro-arruda-moreira: config cache
+    it('creates a vault on success using config cache and offline mode', async () => {
+
+        mockAPI.mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response<IVaultageConfig>(config));
+        });
+        mockAPI.mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response({}));
+        }).mockImplementationOnce((_parameters) => {
+            return Promise.resolve(response({}));
+        });
+        console.time('vault - offline enabled');
+        const vault = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE, new MockOfflineProvider());
+        console.timeEnd('vault - offline enabled');
+        console.time('vault - offline disabled');
+        const vault2 = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+        console.timeEnd('vault - offline disabled');
+
+        expect(mockAPI).toHaveBeenNthCalledWith(1,
+            {
+                url: 'url/config'
+            }
+        );
+        expect(mockAPI).toHaveBeenNthCalledWith(2,
+            {
+                url: 'url/username/483c29af947d335ed2851c62f1daa12227126b00035387f66f2d1492036d4dcb/vaultage_api'
+            }
+        );
+        expect(mockAPI).toHaveBeenNthCalledWith(3,
+            {
+                url: 'url/username/483c29af947d335ed2851c62f1daa12227126b00035387f66f2d1492036d4dcb/vaultage_api'
+            }
+        );
+
+        expect(vault).toBeInstanceOf(Vault);
+        expect(vault2).toBeInstanceOf(Vault);
+        expect(obtainedConfig).toBe(config);
     });
 
     // pedro-arruda-moreira: config cache
