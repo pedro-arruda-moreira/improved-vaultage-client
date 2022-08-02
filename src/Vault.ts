@@ -37,16 +37,24 @@ const fromBase64: (text: string) => string = (b64) => {
  * The vault class.
  *
  * @example
- * var vault = new Vault();
- * vault.auth(some_url, some_username, some_pwd, function(err) {
- *   if (err) throw err;
- *
- *   var nb_entries = vault.getNbEntries();
- *   console.log('Success! Fetched ' + nb_entries + ' entries.');
- * });
+ * async function doLoginAndCreateEntry() {
+ *   const vault = await Vault.build(creds, crypto, cipher, offlineProvider, httpParams, isDemo);
+ *   vault.addEntry(myNewEntry);
+ *   await vault.save();
+ * }
  */
 export class Vault {
 
+    /**
+     * Creates a new vault and wait for the cipher to be decrypted (if present)
+     * @param creds the credentials
+     * @param crypto the crypto
+     * @param cipher the cipher (if present)
+     * @param offlineProvider the offline provider
+     * @param httpParams HTTP params for axios
+     * @param demoMode is server in demo mode?
+     * @returns a new Vault.
+     */
     public static async build(creds: ICredentials, crypto: Crypto, cipher: string | undefined, offlineProvider: IOfflineProvider,
                               httpParams?: IHttpParams, demoMode?: boolean) {
         const newVault = new Vault(creds, crypto, offlineProvider, httpParams, demoMode);
@@ -64,9 +72,18 @@ export class Vault {
     private _lastFingerprint?: string;
     private _isServerInDemoMode: boolean;
     private _offlineProvider: IOfflineProvider;
-
-    private constructor(creds: ICredentials, crypto: Crypto, offlineProvider: IOfflineProvider,
-                        httpParams?: IHttpParams, demoMode?: boolean) {
+    /**
+     * Do -*NOT*- call this constructor directly, instead use Vault.build(params...),
+     * this constructor is only public to allow applications using the client to create
+     * unit tests.
+     * @param creds the credentials
+     * @param crypto the crypto
+     * @param offlineProvider the offline provider
+     * @param httpParams HTTP params for axios
+     * @param demoMode is server in demo mode?
+     */
+    public constructor(creds: ICredentials, crypto: Crypto, offlineProvider: IOfflineProvider,
+                       httpParams?: IHttpParams, demoMode?: boolean) {
         this._creds = { ...creds };
         this._crypto = crypto;
         this._db = new VaultDB({});
