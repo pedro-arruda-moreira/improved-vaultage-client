@@ -16,8 +16,7 @@
     "files": [
         "dist/src",
         "dist/vaultage.js",
-        "dist/vaultage.d.ts",
-        "lib"
+        "dist/vaultage.d.ts"
     ],
     "contributors": [
         "Ludovic Barman <ludovic.barman@protonmail.com> (https://lbarman.ch/)",
