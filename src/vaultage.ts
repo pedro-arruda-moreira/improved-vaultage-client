@@ -6,11 +6,13 @@ import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
+import { ISJCLParams } from './sjcl_api';
 
+export { sjcl_encrypt, sjcl_decrypt, ISJCLParams } from './sjcl_api';
 export { IOfflineProvider };
-export { IConfigCache } from './IConfigCache';
+export { IConfigCache };
 export { Passwords } from './Passwords';
-export { Vault } from './Vault';
+export { Vault };
 export { VaultageError, ERROR_CODE } from './VaultageError';
 export * from './interface';
 
@@ -66,7 +68,8 @@ export async function login(
         httpParams?: IHttpParams,
         configCache: IConfigCache = NoOPSaltsCache.INSTANCE,
         // pedro-arruda-moreira: offline mode support
-        offlineProvider: IOfflineProvider = NoOPOfflineProvider.INSTANCE): Promise<Vault> {
+        offlineProvider: IOfflineProvider = NoOPOfflineProvider.INSTANCE,
+        sjclParams?: ISJCLParams): Promise<Vault> {
 
     const creds = {
         serverURL: serverURL.replace(/\/$/, ''), // Removes trailing slash
@@ -108,7 +111,7 @@ export async function login(
         REMOTE_KEY_SALT: config.salts.remote_key_salt,
     };
 
-    const crypto = new Crypto(salts);
+    const crypto = new Crypto(salts, sjclParams);
 
     if (offline) {
         creds.localKey = await Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());

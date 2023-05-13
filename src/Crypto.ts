@@ -1,10 +1,8 @@
 import { FastCryptoAPI } from './crypto-impl/FastCryptoAPI';
 import { LegacyCryptoAPI } from './crypto-impl/LegacyCryptoAPI';
 import { ISaltsConfig } from './interface';
+import { ISJCLParams, sjcl_encrypt, sjcl_decrypt } from './sjcl_api';
 import { ERROR_CODE, VaultageError } from './VaultageError';
-
-// tslint:disable-next-line:no-var-requires
-const sjcl = require('../lib/sjcl') as any;
 
 // pedro-arruda-moreira: offline mode support
 const OFFLINE_PBKDF2_DIFFICULTY: number = 1048576;
@@ -35,7 +33,8 @@ export class Crypto {
     public PBKDF2_DIFFICULTY: number = 32768;
 
     constructor(
-        private _salts: ISaltsConfig) {
+        private _salts: ISaltsConfig,
+        private _sjclConfig?: ISJCLParams) {
     }
 
     /**
@@ -65,7 +64,7 @@ export class Crypto {
      * @param plain The plaintext to encrypt
      */
     public encrypt(localKey: string, plain: string): string {
-        return sjcl.encrypt(localKey, plain);
+        return sjcl_encrypt(localKey, plain, this._sjclConfig);
     }
 
     /**
@@ -78,7 +77,7 @@ export class Crypto {
      */
     public decrypt(localKey: string, cipher: string): string {
         try {
-            return sjcl.decrypt(localKey, cipher);
+            return sjcl_decrypt(localKey, cipher);
         } catch (e) {
             throw new VaultageError(ERROR_CODE.CANNOT_DECRYPT, 'An error occurred while decrypting the cipher', e);
         }
