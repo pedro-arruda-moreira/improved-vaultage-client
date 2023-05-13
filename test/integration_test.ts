@@ -149,8 +149,14 @@ async function runIntegrationTest() {
 
     // log out and pull again
     console.log('Logging out...');
+    console.log('now testing SJCL params.');
 
-    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider());
+    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider(),
+    {
+        iter: 48000,
+        mode: 'ocb2',
+        ks: 192
+    });
 
     if (vault.offline) {
         fail(vault, 'Vault is in offline mode.');

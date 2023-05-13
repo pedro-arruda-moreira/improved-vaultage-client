@@ -1,11 +1,10 @@
 import { ICryptoAPI } from './CryptoAPI';
+import { sjcl_sha512, sjcl_hex_from_bits, sjcl_pbkdf2 } from '../sjcl_api';
 
-// tslint:disable-next-line:no-var-requires
-const sjcl = require('../../lib/sjcl') as any;
 export class LegacyCryptoAPI implements ICryptoAPI {
     public deriveKey(password: string, salt: string, difficulty: number, useSha512: boolean): Promise<string> {
-        const key = (useSha512 ? sjcl.hash.sha512.hash(password) : password);
-        return Promise.resolve(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(key, salt, difficulty)));
+        const key = (useSha512 ? sjcl_sha512(password) : password);
+        return Promise.resolve(sjcl_hex_from_bits(sjcl_pbkdf2(key, salt, difficulty)));
     }
 
 }
