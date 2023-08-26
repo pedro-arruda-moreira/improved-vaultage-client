@@ -1,5 +1,4 @@
-import { FastCryptoAPI } from './crypto-impl/FastCryptoAPI';
-import { LegacyCryptoAPI } from './crypto-impl/LegacyCryptoAPI';
+import { CryptoOperation, getCryptoAPI } from './crypto-impl/CryptoAPI';
 import { ISaltsConfig } from './interface';
 import { ISJCLParams, sjcl_encrypt, sjcl_decrypt } from './sjcl_api';
 import { ERROR_CODE, VaultageError } from './VaultageError';
@@ -22,12 +21,8 @@ export class Crypto {
         return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
     }
 
-    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
-        try {
-            return new FastCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
-        } catch (e) {
-            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
-        }
+    private static async tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
+        return (await getCryptoAPI(CryptoOperation.DERIVE)).deriveKey(password, salt, difficulty, useSha512);
     }
 
     public PBKDF2_DIFFICULTY: number = 32768;

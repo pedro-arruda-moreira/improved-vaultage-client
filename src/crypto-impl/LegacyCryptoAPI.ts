@@ -7,4 +7,8 @@ export class LegacyCryptoAPI implements ICryptoAPI {
         return Promise.resolve(sjcl_hex_from_bits(sjcl_pbkdf2(key, salt, difficulty)));
     }
 
+    public canDerive(): Promise<Boolean> {
+        return Promise.resolve(true);
+    }
+
 }
