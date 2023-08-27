@@ -6,9 +6,9 @@ import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
-import { ISJCLParams } from './sjcl_api';
+import { CryptoOperation, ISJCLParams, getCryptoAPI, param2String, string2Param } from './crypto-impl/CryptoAPI';
 
-export { sjcl_encrypt, sjcl_decrypt, ISJCLParams } from './sjcl_api';
+export { ISJCLParams };
 export { IOfflineProvider };
 export { IConfigCache };
 export { Passwords } from './Passwords';
@@ -148,4 +148,14 @@ export function _mockHttpRequests(fn: HttpRequestFunction): void {
  */
 export function version(): string {
     return pkg.version;
+}
+
+export async function encrypt(key: string, plain: string, params?: ISJCLParams) {
+    const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, params)).encrypt(plain, key, params);
+    return param2String(p);
+}
+
+export async function decrypt(key: string, cipher: string) {
+    const param = string2Param(cipher);
+    return (await getCryptoAPI(CryptoOperation.DECRYPT, param)).decrypt(key, param);
 }

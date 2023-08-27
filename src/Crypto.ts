@@ -1,7 +1,5 @@
-import { FastCryptoAPI } from './crypto-impl/FastCryptoAPI';
-import { LegacyCryptoAPI } from './crypto-impl/LegacyCryptoAPI';
+import { CryptoOperation, getCryptoAPI, ISJCLParams, param2String, string2Param } from './crypto-impl/CryptoAPI';
 import { ISaltsConfig } from './interface';
-import { ISJCLParams, sjcl_encrypt, sjcl_decrypt } from './sjcl_api';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
 // pedro-arruda-moreira: offline mode support
@@ -22,12 +20,8 @@ export class Crypto {
         return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
     }
 
-    private static tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
-        try {
-            return new FastCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
-        } catch (e) {
-            return new LegacyCryptoAPI().deriveKey(password, salt, difficulty, useSha512);
-        }
+    private static async tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
+        return (await getCryptoAPI(CryptoOperation.DERIVE)).deriveKey(password, salt, difficulty, useSha512);
     }
 
     public PBKDF2_DIFFICULTY: number = 32768;
@@ -63,8 +57,9 @@ export class Crypto {
      * @param localKey Local encryption key
      * @param plain The plaintext to encrypt
      */
-    public encrypt(localKey: string, plain: string): string {
-        return sjcl_encrypt(localKey, plain, this._sjclConfig);
+    public async encrypt(localKey: string, plain: string): Promise<string> {
+        const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
+        return param2String(p);
     }
 
     /**
@@ -75,9 +70,10 @@ export class Crypto {
      * @param localKey Local encryption key
      * @param cipher The ciphertext to encrypt
      */
-    public decrypt(localKey: string, cipher: string): string {
+    public async decrypt(localKey: string, cipher: string): Promise<string> {
         try {
-            return sjcl_decrypt(localKey, cipher);
+            const param = string2Param(cipher);
+            return (await getCryptoAPI(CryptoOperation.DECRYPT, param)).decrypt(localKey, param);
         } catch (e) {
             throw new VaultageError(ERROR_CODE.CANNOT_DECRYPT, 'An error occurred while decrypting the cipher', e);
         }

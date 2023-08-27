@@ -354,7 +354,7 @@ export class VaultDB {
     /** Function count the occurrences of substring in a string;
      * @param {String} string   Required. The string;
      * @param {String} subString    Required. The string to search for;
-     * @param {Boolean} allowOverlapping    Optional. Default: false;
+     * @param {boolean} allowOverlapping    Optional. Default: false;
      * @author Vitim.us http://stackoverflow.com/questions/4009756/how-to-count-string-occurrence-in-string/7924240#7924240
      */
     private countOccurrences(haystack: string, needle: string, allowOverlapping: boolean): number {
