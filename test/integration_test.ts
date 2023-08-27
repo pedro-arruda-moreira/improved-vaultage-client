@@ -154,7 +154,7 @@ async function runIntegrationTest() {
     vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider(),
     {
         iter: 48000,
-        mode: 'ocb2',
+        mode: 'gcm',
         ks: 192
     });
 

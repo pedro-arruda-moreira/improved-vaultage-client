@@ -58,7 +58,7 @@ export interface ISJCLParams {
     salt?: string;
 
     /**
-     * Cypher Text
+     * cipher Text
      */
     ct?: string;
 }
@@ -76,7 +76,7 @@ export interface ICryptoAPI {
     encrypt(plain: string, key: string, params?: ISJCLParams): Promise<ISJCLParams>;
     canEncrypt(params?: ISJCLParams): Promise<boolean>;
 
-    decrypt(key: string, cypher: ISJCLParams): Promise<string>;
+    decrypt(key: string, cipher: ISJCLParams): Promise<string>;
     canDecrypt(params: ISJCLParams): Promise<boolean>;
 }
 

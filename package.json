@@ -11,7 +11,8 @@
         "unit-test": "npm run lint && cross-env NODE_PATH=.. jest",
         "test": "npm run unit-test && ts-node test/integration_test.ts",
         "watch": "cross-env NODE_PATH=.. jest --watch",
-        "rebuild-test": "npm run clean && rimraf node_modules/ && npm install && npm install --save-dev && npm run build && npm run test"
+        "rebuild-test": "npm run clean && npm run build && npm run test",
+        "rebuild-dep-test": "rimraf node_modules/ && npm install && npm install --save-dev && npm run rebuild-test"
     },
     "files": [
         "dist/src",

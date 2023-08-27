@@ -1,12 +1,26 @@
 import { arrayBufferToBase64String, base64StringToArrayBuffer } from '../utils';
 import { ICryptoAPI, ISJCLParams } from './CryptoAPI';
 
+const ALGORITHM = 'AES-GCM';
+const TAG_LENGTH = 128;
+const VERSION = 1;
+const AES_KEY_SIZE = 256;
+
 function createEncoder(): TextEncoder {
     try {
         return new window.TextEncoder();
     } catch (e) {
         // tslint:disable-next-line
         return new (eval('require(\'util\')').TextEncoder)() as TextEncoder;
+    }
+}
+
+function createDecoder(): TextDecoder {
+    try {
+        return new window.TextDecoder();
+    } catch (e) {
+        // tslint:disable-next-line
+        return new (eval('require(\'util\')').TextDecoder)() as TextDecoder;
     }
 }
 
@@ -24,7 +38,7 @@ function randomValues(buff: Uint8Array): Uint8Array {
         return crypto.getRandomValues(buff);
     } catch (e) {
         // tslint:disable-next-line
-        return (eval('require(\'crypto\')').getRandomValues(buff)) as Uint8Array;
+        return (eval('require(\'crypto\')').webcrypto.getRandomValues(buff)) as Uint8Array;
     }
 }
 
@@ -32,11 +46,31 @@ function toHexString(bytes: Uint8Array) {
     return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
 }
 
+/**
+ * Outside class for unit tests.
+ * @param instance
+ * @returns
+ */
+export function doInitialize(instance: FastCryptoAPI) {
+    try {
+        instance.cryptoInstance = getCrypto();
+        instance.encoderInstance = createEncoder();
+        instance.decoderInstance = createDecoder();
+        randomValues(new Uint8Array(1));
+        return instance.cryptoInstance != null && instance.encoderInstance != null && instance.decoderInstance != null;
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
+}
+
 export class FastCryptoAPI implements ICryptoAPI {
 
-    private cryptoInstance?: SubtleCrypto = undefined;
+    public cryptoInstance?: SubtleCrypto = undefined;
 
-    private encoderInstance?: TextEncoder = undefined;
+    public encoderInstance?: TextEncoder = undefined;
+
+    public decoderInstance?: TextDecoder = undefined;
 
     public async deriveKey(password: string, salt: string, difficulty: number, useSha512: boolean): Promise<string> {
         return toHexString(await this.pbkdf2(password, salt, 'SHA-256', difficulty, 32, useSha512));
@@ -61,9 +95,9 @@ export class FastCryptoAPI implements ICryptoAPI {
         } else {
             salt = randomValues(new Uint8Array(8));
         }
-        const keyArray: Uint8Array = await this.pbkdf2(key, salt, 'SHA-256', iterations, 32, false);
+        const keyArray = await this.pbkdf2(key, salt, 'SHA-256', iterations, AES_KEY_SIZE / 8, false);
         const importedKey = await crypto.importKey('raw', keyArray, {
-            name: 'AES'
+            name: ALGORITHM
         } as AesKeyAlgorithm, false, ['encrypt']);
         let ivArray: ArrayBuffer;
         if (params && params!!.iv) {
@@ -73,32 +107,77 @@ export class FastCryptoAPI implements ICryptoAPI {
         }
         const cryptoResult = await crypto.encrypt(
             {
-                name: 'AES-GCM',
-                iv: ivArray
+                name: ALGORITHM,
+                iv: ivArray,
+                tagLength: TAG_LENGTH
             },
             importedKey,
             encoder.encode(plain)
         );
-        const paramsCopy = {} as ISJCLParams;
-        paramsCopy.ct = arrayBufferToBase64String(cryptoResult);
-        paramsCopy.iv = arrayBufferToBase64String(ivArray);
-        paramsCopy.salt = arrayBufferToBase64String(salt);
-        paramsCopy.v = 1;
-        paramsCopy.iter = iterations;
-        paramsCopy.ks = 256;
-        paramsCopy.mode = 'gcm';
-        paramsCopy.ts = 64;
-        paramsCopy.cipher = 'aes';
-        paramsCopy.adata = '';
-        return Promise.resolve(paramsCopy);
+        const result = {} as ISJCLParams;
+        result.ct = arrayBufferToBase64String(cryptoResult);
+        result.iv = arrayBufferToBase64String(ivArray);
+        result.salt = arrayBufferToBase64String(salt);
+        result.v = VERSION;
+        result.iter = iterations;
+        result.ks = AES_KEY_SIZE;
+        result.mode = 'gcm';
+        result.ts = TAG_LENGTH;
+        result.cipher = 'aes';
+        result.adata = '';
+        return Promise.resolve(result);
     }
 
     public canEncrypt(params?: ISJCLParams): Promise<boolean> {
         return Promise.resolve(this.canEncryptOrDecrypt(params));
     }
 
-    public async decrypt(_: string, __: ISJCLParams): Promise<string> {
-        throw new Error('bla');
+    public async decrypt(key: string, params: ISJCLParams): Promise<string> {
+        if (!params.ct) {
+            throw new Error('cipher text not specified!');
+        }
+        if (!params.ts) {
+            throw new Error('tag length not specified!');
+        }
+        const crypto = this.cryptoInstance as SubtleCrypto;
+        let iterations: number;
+        if (params.iter) {
+            iterations = params.iter!!;
+        } else {
+            throw new Error('iterations not specified!');
+        }
+        let keyLen: number;
+        if (params.ks) {
+            keyLen = params.ks!!;
+        } else {
+            keyLen = AES_KEY_SIZE;
+        }
+        let salt: ArrayBuffer;
+        if (params.salt) {
+            salt = base64StringToArrayBuffer(params.salt!!);
+        } else {
+            throw new Error('salt not specified!');
+        }
+        const keyArray = await this.pbkdf2(key, salt, 'SHA-256', iterations, keyLen / 8, false);
+        const importedKey = await crypto.importKey('raw', keyArray, {
+            name: ALGORITHM
+        } as AesKeyAlgorithm, false, ['decrypt']);
+        let ivArray: ArrayBuffer;
+        if (params.iv) {
+            ivArray = base64StringToArrayBuffer(params!!.iv!!);
+        } else {
+            throw new Error('IV not specified!');
+        }
+        const cryptoResult = await crypto.decrypt(
+            {
+                name: ALGORITHM,
+                iv: ivArray,
+                tagLength: params.ts!!
+            },
+            importedKey,
+            base64StringToArrayBuffer(params.ct!!)
+        );
+        return this.decoderInstance!!.decode(cryptoResult);
     }
 
     public canDecrypt(params: ISJCLParams): Promise<boolean> {
@@ -107,14 +186,7 @@ export class FastCryptoAPI implements ICryptoAPI {
 
 
     private initialize(): boolean {
-        try {
-            this.cryptoInstance = getCrypto();
-            this.encoderInstance = createEncoder();
-            randomValues(new Uint8Array(1));
-            return this.cryptoInstance != null && this.encoderInstance != null;
-        } catch (e) {
-            return false;
-        }
+        return doInitialize(this);
     }
 
     private canEncryptOrDecrypt(params?: ISJCLParams): boolean {
@@ -131,7 +203,7 @@ export class FastCryptoAPI implements ICryptoAPI {
         if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength !== 12) {
             able = false;
         }
-        if (params.ts !== undefined && params.ts !== 64) {
+        if (params.ts !== undefined && params.ts !== 128) {
             able = false;
         }
         return able;

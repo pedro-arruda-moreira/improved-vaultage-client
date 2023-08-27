@@ -42,22 +42,22 @@ test('Workflow', async () => {
         }
     });
     const plain = VaultDB.serialize(db);
-    const fp = crypto.getFingerprint(plain, await key);
+    const fp = await crypto.getFingerprint(plain, await key);
 
     cPrint('Here is what the db looks like initially: ');
     cPrint(db);
     cPrint('Fingerprint: ' + fp);
 
     cPrint('\n\nNow I\'m gonna encrypt the db');
-    const enc = crypto.encrypt(await key, plain);
+    const enc = await crypto.encrypt(await key, plain);
 
     cPrint('Here is the cipher:\n');
     cPrint(enc);
 
     cPrint('\n\nAnd now let\'s get back the original:');
 
-    const dec = crypto.decrypt(await key, await enc);
-    const decFP = crypto.getFingerprint(await dec, await key);
+    const dec = await crypto.decrypt(await key, await enc);
+    const decFP = await crypto.getFingerprint(await dec, await key);
     const decDB = VaultDB.deserialize(await dec);
 
     cPrint(decDB);

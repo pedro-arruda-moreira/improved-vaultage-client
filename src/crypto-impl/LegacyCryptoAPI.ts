@@ -46,7 +46,7 @@ export class LegacyCryptoAPI implements ICryptoAPI {
         return Promise.resolve(true);
     }
 
-    public encrypt(plain: string, key: string, params: ISJCLParams): Promise<ISJCLParams> {
+    public encrypt(plain: string, key: string, params?: ISJCLParams): Promise<ISJCLParams> {
         const result = sjcl_encrypt(key, plain, params);
         return Promise.resolve(string2Param(result));
     }
@@ -55,8 +55,8 @@ export class LegacyCryptoAPI implements ICryptoAPI {
         return Promise.resolve(true);
     }
 
-    public decrypt(key: string, cypher: ISJCLParams): Promise<string> {
-        return Promise.resolve(sjcl_decrypt(key, param2String(cypher)));
+    public decrypt(key: string, cipher: ISJCLParams): Promise<string> {
+        return Promise.resolve(sjcl_decrypt(key, param2String(cipher)));
     }
 
     public canDecrypt(_: ISJCLParams): Promise<boolean> {

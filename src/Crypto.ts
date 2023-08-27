@@ -58,7 +58,7 @@ export class Crypto {
      * @param plain The plaintext to encrypt
      */
     public async encrypt(localKey: string, plain: string): Promise<string> {
-        const p = (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
+        const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
         return JSON.stringify(p);
     }
 
