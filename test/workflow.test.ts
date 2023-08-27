@@ -56,9 +56,9 @@ test('Workflow', async () => {
 
     cPrint('\n\nAnd now let\'s get back the original:');
 
-    const dec = crypto.decrypt(await key, enc);
-    const decFP = crypto.getFingerprint(dec, await key);
-    const decDB = VaultDB.deserialize(dec);
+    const dec = crypto.decrypt(await key, await enc);
+    const decFP = crypto.getFingerprint(await dec, await key);
+    const decDB = VaultDB.deserialize(await dec);
 
     cPrint(decDB);
     cPrint('Fingerprint: ' + decFP);

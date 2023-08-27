@@ -2,7 +2,7 @@ import { Crypto } from './Crypto';
 import { HttpApi } from './HTTPApi';
 import { IHttpParams, IVaultDBEntry, IVaultDBEntryAttrs, IVaultDBEntryAttrsImproved, IVaultDBEntryImproved, PasswordStrength } from './interface';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
-import { deepCopy } from './utils';
+import { deepCopy, fromBase64, toBase64 } from './utils';
 import { VaultDB } from './VaultDB';
 
 export interface ICredentials {
@@ -18,20 +18,6 @@ interface IUrlJson {
     secureNote: string;
 }
 
-const toBase64: (text: string) => string = (text) => {
-    try {
-        return btoa(text);
-    } catch (e) {
-        return Buffer.from(text).toString('base64');
-    }
-};
-const fromBase64: (text: string) => string = (b64) => {
-    try {
-        return atob(b64);
-    } catch (e) {
-        return Buffer.from(b64, 'base64').toString();
-    }
-};
 // [END] pedro-arruda-moreira: secure notes
 /**
  * The vault class.
@@ -60,7 +46,7 @@ export class Vault {
         const newVault = new Vault(creds, crypto, offlineProvider, httpParams, demoMode);
         if (cipher) {
             await newVault._setCipher(creds, cipher);
-            newVault._saveOfflineVault();
+            await newVault._saveOfflineVault();
         }
         return newVault;
     }
@@ -137,7 +123,7 @@ export class Vault {
      *
      * The vault must be authenticated before this method can be called.
      */
-    public save(): Promise<void> {
+    public async save(): Promise<void> {
         // pedro-arruda-moreira: offline mode support
         this._ensureOnline();
         // Bumping the revision on each push ensures that there are no two identical consecutive fingerprints
@@ -150,8 +136,8 @@ export class Vault {
             // throw new VaultageError(ERROR_CODE.DEMO_MODE, 'Server in demo mode');
             return new Promise((resolve, _) => { resolve(); });
         }
-        return this._pushCipher(this._creds, null).then(() => {
-            this._saveOfflineVault();
+        return this._pushCipher(this._creds, null).then(async () => {
+            await this._saveOfflineVault();
         });
     }
 
@@ -160,11 +146,11 @@ export class Vault {
      *
      * The vault must be authenticated before this method can be called.
      */
-    public pull(): Promise<void> {
+    public async pull(): Promise<void> {
         // pedro-arruda-moreira: offline mode support
         this._ensureOnline();
-        return this._pullCipher(this._creds).then(() => {
-            this._saveOfflineVault();
+        return this._pullCipher(this._creds).then(async () => {
+            await this._saveOfflineVault();
         });
     }
     // pedro-arruda-moreira: fixed docs
@@ -205,7 +191,7 @@ export class Vault {
         // everything went fine, now we use the new credentials
         newCredentials.remoteKey = await newRemoteKey;
         this._setCredentials(newCredentials);
-        this._saveOfflineVault();
+        await this._saveOfflineVault();
     }
 
     /**
@@ -337,7 +323,7 @@ export class Vault {
     /**
      * Saves the offline vault (if offline mode is enabled)
      */
-    private _saveOfflineVault() {
+    private async _saveOfflineVault() {
         if (!this.offlineEnabled) {
             // offline mode is not enabled.
             return;
@@ -349,10 +335,10 @@ export class Vault {
                 return;
             }
             const plain = VaultDB.serialize(this._db);
-            const offlineCipher = this._crypto.encrypt(await this._creds.offlineKey as string, plain);
+            const offlineCipher = await this._crypto.encrypt(await this._creds.offlineKey as string, plain);
             await this._offlineProvider.saveOfflineCipher(offlineCipher);
         };
-        doSaveOfflineVault().then(() => {
+        await doSaveOfflineVault().then(() => {
             console.log('offline vault saved.');
         }, (reason: any) => {
             console.error('Error saving offline vault:');
@@ -384,7 +370,7 @@ export class Vault {
 
     private async _pushCipher(creds: ICredentials, newRemoteKey: (string|null)): Promise<void> {
         const plain = VaultDB.serialize(this._db);
-        const cipher = this._crypto.encrypt(creds.localKey, plain);
+        const cipher = await this._crypto.encrypt(creds.localKey, plain);
         const fingerprint = this._crypto.getFingerprint(plain, creds.localKey);
 
         await HttpApi.pushCipher(
@@ -399,7 +385,7 @@ export class Vault {
     }
 
     private async _setCipher(creds: ICredentials, cipher: string): Promise<void> {
-        const plain = this._crypto.decrypt(creds.localKey, cipher);
+        const plain = await this._crypto.decrypt(creds.localKey, cipher);
         this._db = VaultDB.deserialize(plain);
         this._lastFingerprint = await this._crypto.getFingerprint(plain, creds.localKey);
     }

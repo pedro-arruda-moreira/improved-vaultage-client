@@ -6,9 +6,8 @@ import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
-import { ISJCLParams } from './sjcl_api';
+import { ISJCLParams } from './crypto-impl/CryptoAPI';
 
-export { sjcl_encrypt, sjcl_decrypt, ISJCLParams } from './sjcl_api';
 export { IOfflineProvider };
 export { IConfigCache };
 export { Passwords } from './Passwords';

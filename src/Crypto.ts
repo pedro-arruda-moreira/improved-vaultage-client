@@ -1,6 +1,5 @@
-import { CryptoOperation, getCryptoAPI } from './crypto-impl/CryptoAPI';
+import { CryptoOperation, getCryptoAPI, ISJCLParams } from './crypto-impl/CryptoAPI';
 import { ISaltsConfig } from './interface';
-import { ISJCLParams, sjcl_encrypt, sjcl_decrypt } from './sjcl_api';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
 // pedro-arruda-moreira: offline mode support
@@ -58,8 +57,9 @@ export class Crypto {
      * @param localKey Local encryption key
      * @param plain The plaintext to encrypt
      */
-    public encrypt(localKey: string, plain: string): string {
-        return sjcl_encrypt(localKey, plain, this._sjclConfig);
+    public async encrypt(localKey: string, plain: string): Promise<string> {
+        const p = (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
+        return JSON.stringify(p);
     }
 
     /**
@@ -70,9 +70,9 @@ export class Crypto {
      * @param localKey Local encryption key
      * @param cipher The ciphertext to encrypt
      */
-    public decrypt(localKey: string, cipher: string): string {
+    public async decrypt(localKey: string, cipher: string): Promise<string> {
         try {
-            return sjcl_decrypt(localKey, cipher);
+            return (await getCryptoAPI(CryptoOperation.DECRYPT, this._sjclConfig)).decrypt(localKey, JSON.parse(cipher));
         } catch (e) {
             throw new VaultageError(ERROR_CODE.CANNOT_DECRYPT, 'An error occurred while decrypting the cipher', e);
         }
