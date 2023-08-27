@@ -128,6 +128,10 @@ export class FastCryptoAPI implements ICryptoAPI {
         return Promise.resolve(result);
     }
 
+    public description(): string {
+        return 'FAST';
+    }
+
     public canEncrypt(params?: ISJCLParams): Promise<boolean> {
         return Promise.resolve(this.canEncryptOrDecrypt(params));
     }

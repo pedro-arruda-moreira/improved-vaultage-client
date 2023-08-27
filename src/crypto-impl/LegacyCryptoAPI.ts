@@ -63,4 +63,8 @@ export class LegacyCryptoAPI implements ICryptoAPI {
         return Promise.resolve(true);
     }
 
+    public description(): string {
+        return 'LEGACY';
+    }
+
 }

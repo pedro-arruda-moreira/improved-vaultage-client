@@ -1,4 +1,4 @@
-import { CryptoOperation, getCryptoAPI, ISJCLParams } from './crypto-impl/CryptoAPI';
+import { CryptoOperation, getCryptoAPI, ISJCLParams, param2String, string2Param } from './crypto-impl/CryptoAPI';
 import { ISaltsConfig } from './interface';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
@@ -59,7 +59,7 @@ export class Crypto {
      */
     public async encrypt(localKey: string, plain: string): Promise<string> {
         const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
-        return JSON.stringify(p);
+        return param2String(p);
     }
 
     /**
@@ -72,7 +72,8 @@ export class Crypto {
      */
     public async decrypt(localKey: string, cipher: string): Promise<string> {
         try {
-            return (await getCryptoAPI(CryptoOperation.DECRYPT, this._sjclConfig)).decrypt(localKey, JSON.parse(cipher));
+            const param = string2Param(cipher);
+            return (await getCryptoAPI(CryptoOperation.DECRYPT, param)).decrypt(localKey, param);
         } catch (e) {
             throw new VaultageError(ERROR_CODE.CANNOT_DECRYPT, 'An error occurred while decrypting the cipher', e);
         }
