@@ -315,7 +315,7 @@ export class Vault {
     /**
      * Makes sure this vault is not on offline mode.
      */
-     private _ensureOnline() {
+    private _ensureOnline() {
         if (this.offline) {
             throw new Error('This operation is not allowed in offline mode.');
         }
@@ -329,21 +329,15 @@ export class Vault {
             return;
         }
         this._ensureOnline();
-        const doSaveOfflineVault = async () => {
-            if (!this.offlineEnabled) {
-                // offline mode is not enabled.
-                return;
-            }
+        try {
             const plain = VaultDB.serialize(this._db);
             const offlineCipher = await this._crypto.encrypt(await this._creds.offlineKey as string, plain);
             await this._offlineProvider.saveOfflineCipher(offlineCipher);
-        };
-        await doSaveOfflineVault().then(() => {
             console.log('offline vault saved.');
-        }, (reason: any) => {
+        } catch (reason) {
             console.error('Error saving offline vault:');
             console.error(reason);
-        });
+        }
     }
 
     private _setCredentials(creds: ICredentials): void {
@@ -368,7 +362,7 @@ export class Vault {
         }
     }
 
-    private async _pushCipher(creds: ICredentials, newRemoteKey: (string|null)): Promise<void> {
+    private async _pushCipher(creds: ICredentials, newRemoteKey: (string | null)): Promise<void> {
         const plain = VaultDB.serialize(this._db);
         const cipher = await this._crypto.encrypt(creds.localKey, plain);
         const fingerprint = this._crypto.getFingerprint(plain, creds.localKey);

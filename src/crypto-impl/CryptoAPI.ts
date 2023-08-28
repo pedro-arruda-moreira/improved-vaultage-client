@@ -102,7 +102,7 @@ export async function getCryptoAPI(op: CryptoOperation, params?: ISJCLParams): P
                 return api;
             }
         }
-        console.log(`API ${api.description()} is not capable of ${op === 1 ? 'ENCRYPT' : (op === 0 ? 'DERIVE' : 'DECRYPT')} with params ${param2String(params)}`);
+        console.log(`ICryptoAPI '${api.description()}' is not capable of ${op === 1 ? 'ENCRYPT' : (op === 0 ? 'DERIVE' : 'DECRYPT')} with params ${param2String(params)}`);
     }
     throw new Error('unable to find a ICryptoAPI');
 }

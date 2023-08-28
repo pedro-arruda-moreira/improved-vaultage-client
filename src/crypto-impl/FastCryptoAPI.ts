@@ -204,7 +204,7 @@ export class FastCryptoAPI implements ICryptoAPI {
         if (params.adata !== undefined && params.adata !== '') {
             able = false;
         }
-        if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength !== 12) {
+        if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength < 12) {
             able = false;
         }
         if (params.ts !== undefined && params.ts !== 128) {
