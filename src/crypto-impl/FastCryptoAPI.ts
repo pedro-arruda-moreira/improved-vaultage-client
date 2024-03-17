@@ -9,7 +9,7 @@ const ALGORITHM = 'AES-GCM';
 const TAG_LENGTH: AuthenticationDataHashSize = 128;
 const VERSION: Version = 1;
 const AES_KEY_SIZE: KeySize = 256;
-const MINIMAL_SALT_SIZE = 12;
+const MINIMAL_IV_SIZE = 12;
 const CIPHER_TYPE: CipherType = 'aes';
 
 const REQUIRE: RequireFunction = (() => {
@@ -126,7 +126,7 @@ export class FastCryptoAPI implements ICryptoAPI {
         if (params && params!!.iv) {
             ivArray = base64StringToArrayBuffer(params!!.iv!!);
         } else {
-            ivArray = randomValues(new Uint8Array(MINIMAL_SALT_SIZE));
+            ivArray = randomValues(new Uint8Array(MINIMAL_IV_SIZE));
         }
         const cryptoResult = await crypto.encrypt(
             {
@@ -235,11 +235,7 @@ export class FastCryptoAPI implements ICryptoAPI {
                 this._log.error(() => 'failed on mode');
                 able = false;
             }
-            // if (params.adata !== undefined && params.adata !== '') {
-            //    this._log.error(() => 'failed on adata');
-            //    able = false;
-            // }
-            if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength < MINIMAL_SALT_SIZE) {
+            if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength < MINIMAL_IV_SIZE) {
                 this._log.error(() => 'failed on IV');
                 able = false;
             }
