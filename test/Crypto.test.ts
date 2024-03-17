@@ -1,6 +1,7 @@
 import { FastCryptoAPI, doInitialize } from 'improved-vaultage-client/src/crypto-impl/FastCryptoAPI';
 import { LegacyCryptoAPI } from 'improved-vaultage-client/src/crypto-impl/LegacyCryptoAPI';
 import { Crypto } from '../src/Crypto';
+import { ConsoleLog } from 'improved-vaultage-client/src/vaultage';
 
 function generateString(len: number) {
     return Math.random().toString(36).substr(2, 2 + len);
@@ -18,9 +19,11 @@ const EXPECTED_OFFLINE_KEY = '8a895f56fe4d16e2b88480e500ae6c195c2a7318c72aebf064
 
 const EXPECTED_FINGERPRINT = '26cf88bef1397343f38ebdef0452bef1a744a3fbefd3248f1095e73b3dec6e46';
 
+const ADDITIONAL_DATA = 'blah blah';
+
 function createFastCrypto() {
-    const instance = new FastCryptoAPI();
-    doInitialize(instance);
+    const instance = new FastCryptoAPI(ConsoleLog.INSTANCE);
+    doInitialize(instance, ConsoleLog.INSTANCE);
     return instance;
 }
 
@@ -30,8 +33,9 @@ describe('Crypto.ts', () => {
     beforeEach(() => {
         crypto = new Crypto({
             LOCAL_KEY_SALT: LOCAL_SALT,
-            REMOTE_KEY_SALT: REMOTE_SALT,
-        });
+            REMOTE_KEY_SALT: REMOTE_SALT
+        },
+        ConsoleLog.INSTANCE);
         crypto.PBKDF2_DIFFICULTY = DIFFICULTY;
     });
 
@@ -46,7 +50,7 @@ describe('Crypto.ts', () => {
             expect(await remoteKey).toEqual(EXPECTED_REMOTE_KEY);
         });
         it('gives a consistent offline key - Crypto', async () => {
-            const offlineKey = Crypto.deriveOfflineKey(masterKey, OFFLINE_SALT);
+            const offlineKey = Crypto.deriveOfflineKey(masterKey, OFFLINE_SALT, ConsoleLog.INSTANCE);
             expect(await offlineKey).toEqual(EXPECTED_OFFLINE_KEY);
         });
         it('gives a consistent local key - Legacy', async () => {
@@ -103,6 +107,31 @@ describe('Crypto.ts', () => {
                 const plain2 = await fast.decrypt(localKey, cipher2);
                 console.log(plain2);
                 expect(plaintext).toEqual(plain2);
+            });
+
+            it('works with legacy and fast together with adata.', async () => {
+                console.log(ADDITIONAL_DATA);
+                const cipher1 = await fast.encrypt(plaintext, localKey, {
+                    adata: ADDITIONAL_DATA
+                });
+                console.log(cipher1);
+                expect(plaintext).not.toEqual(cipher1);
+                const plain1 = await legacy.decrypt(localKey, cipher1);
+                console.log(plain1);
+                expect(plaintext).toEqual(plain1);
+                const cipher2 = await legacy.encrypt(plain1, localKey, {
+                    mode: 'gcm',
+                    ts: 128,
+                    ks: 192,
+                    adata: ADDITIONAL_DATA
+                });
+                console.log(cipher2);
+                expect(plaintext).not.toEqual(cipher2);
+                expect(cipher1).not.toEqual(cipher2);
+                const plain2 = await fast.decrypt(localKey, cipher2);
+                console.log(plain2);
+                expect(plaintext).toEqual(plain2);
+                expect(plain1).toEqual(plain2);
             });
         }
     });

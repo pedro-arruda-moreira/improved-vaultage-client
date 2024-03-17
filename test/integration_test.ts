@@ -31,7 +31,12 @@ async function runIntegrationTest() {
     console.log('starting integration test.');
 
     // create vault
-    let vault = await vaultage.login(serverUrl, username, masterpwd);
+    let vault = await vaultage.login({
+        serverURL: serverUrl,
+        username,
+        masterPassword: masterpwd,
+        log: vaultage.ConsoleLog.INSTANCE
+    });
 
     if (vault.offline) {
         fail(vault, 'Vault is in offline mode.');
@@ -63,7 +68,12 @@ async function runIntegrationTest() {
     // log out and pull again
     console.log('Logging back in...');
 
-    vault = await vaultage.login(serverUrl, username, masterpwd);
+    vault = await vaultage.login({
+        serverURL: serverUrl,
+        username,
+        masterPassword: masterpwd,
+        log: vaultage.ConsoleLog.INSTANCE
+    });
 
     if (vault.offline) {
         fail(vault, 'Vault is in offline mode.');
@@ -151,11 +161,17 @@ async function runIntegrationTest() {
     console.log('Logging out...');
     console.log('now testing SJCL params.');
 
-    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider(),
-    {
-        iter: 48000,
-        mode: 'ocb2',
-        ks: 192
+    vault = await vaultage.login({
+        serverURL: serverUrl,
+        username,
+        masterPassword: newMasterPassword,
+        offlineProvider: new SimpleOfflineProvider(),
+        cryptoParams: {
+            iter: 48000,
+            mode: 'ocb2',
+            ks: 192
+        },
+        log: vaultage.ConsoleLog.INSTANCE
     });
 
     if (vault.offline) {
@@ -201,7 +217,13 @@ async function runIntegrationTest() {
     await vault.save();
     offline = true;
 
-    vault = await vaultage.login(serverUrl, username, newMasterPassword, undefined, undefined, new SimpleOfflineProvider());
+    vault = await vaultage.login({
+        serverURL: serverUrl,
+        username,
+        masterPassword: newMasterPassword,
+        offlineProvider: new SimpleOfflineProvider(),
+        log: vaultage.ConsoleLog.INSTANCE
+    });
 
     if (!vault.offline) {
         fail(vault, 'Vault is not in offline mode.');

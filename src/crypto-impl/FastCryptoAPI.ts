@@ -1,17 +1,33 @@
+import { ILog } from '../ILog';
 import { arrayBufferToBase64String, base64StringToArrayBuffer } from '../utils';
-import { ICryptoAPI, ISJCLParams } from './CryptoAPI';
+import { AESMode, AuthenticationDataHashSize, CipherType, ICryptoAPI, ICryptoParams, KeySize, Version } from './CryptoAPI';
 
+type RequireFunction = (name: string) => any;
+
+const AES_MODE: AESMode = 'gcm';
 const ALGORITHM = 'AES-GCM';
-const TAG_LENGTH = 128;
-const VERSION = 1;
-const AES_KEY_SIZE = 256;
+const TAG_LENGTH: AuthenticationDataHashSize = 128;
+const VERSION: Version = 1;
+const AES_KEY_SIZE: KeySize = 256;
+const MINIMAL_SALT_SIZE = 12;
+const CIPHER_TYPE: CipherType = 'aes';
+
+const REQUIRE: RequireFunction = (() => {
+    try {
+        // tslint:disable-next-line
+        return eval('require');
+    } catch (e) {
+        return (name) => {
+            throw new Error(`require function not found! (tried to load module ${name})`);
+        };
+    }
+})();
 
 function createEncoder(): TextEncoder {
     try {
         return new window.TextEncoder();
     } catch (e) {
-        // tslint:disable-next-line
-        return new (eval('require(\'util\')').TextEncoder)() as TextEncoder;
+        return new (REQUIRE('util').TextEncoder)() as TextEncoder;
     }
 }
 
@@ -19,8 +35,7 @@ function createDecoder(): TextDecoder {
     try {
         return new window.TextDecoder();
     } catch (e) {
-        // tslint:disable-next-line
-        return new (eval('require(\'util\')').TextDecoder)() as TextDecoder;
+        return new (REQUIRE('util').TextDecoder)() as TextDecoder;
     }
 }
 
@@ -28,8 +43,7 @@ function getCrypto(): SubtleCrypto {
     try {
         return crypto.subtle;
     } catch (e) {
-        // tslint:disable-next-line
-        return (eval('require(\'crypto\')').webcrypto.subtle) as SubtleCrypto;
+        return REQUIRE('crypto').webcrypto.subtle as SubtleCrypto;
     }
 }
 
@@ -37,8 +51,7 @@ function randomValues(buff: Uint8Array): Uint8Array {
     try {
         return crypto.getRandomValues(buff);
     } catch (e) {
-        // tslint:disable-next-line
-        return (eval('require(\'crypto\')').webcrypto.getRandomValues(buff)) as Uint8Array;
+        return (REQUIRE('crypto').webcrypto.getRandomValues(buff)) as Uint8Array;
     }
 }
 
@@ -51,7 +64,7 @@ function toHexString(bytes: Uint8Array) {
  * @param instance
  * @returns
  */
-export function doInitialize(instance: FastCryptoAPI) {
+export function doInitialize(instance: FastCryptoAPI, log: ILog) {
     try {
         instance.cryptoInstance = getCrypto();
         instance.encoderInstance = createEncoder();
@@ -59,7 +72,7 @@ export function doInitialize(instance: FastCryptoAPI) {
         randomValues(new Uint8Array(1));
         return instance.cryptoInstance != null && instance.encoderInstance != null && instance.decoderInstance != null;
     } catch (e) {
-        console.error(e);
+        log.error(() => 'Error during init.', e);
         return false;
     }
 }
@@ -72,6 +85,10 @@ export class FastCryptoAPI implements ICryptoAPI {
 
     public decoderInstance?: TextDecoder = undefined;
 
+    constructor(
+        private _log: ILog
+    ) { }
+
     public async deriveKey(password: string, salt: string, difficulty: number, useSha512: boolean): Promise<string> {
         return toHexString(await this.pbkdf2(password, salt, 'SHA-256', difficulty, 32, useSha512));
     }
@@ -80,20 +97,26 @@ export class FastCryptoAPI implements ICryptoAPI {
         return Promise.resolve(this.initialize());
     }
 
-    public async encrypt(plain: string, key: string, params?: ISJCLParams): Promise<ISJCLParams> {
+    public async encrypt(plain: string, key: string, params?: ICryptoParams): Promise<ICryptoParams> {
         const encoder = this.encoderInstance as TextEncoder;
         const crypto = this.cryptoInstance as SubtleCrypto;
         let iterations: number;
         if (params && params!!.iter) {
             iterations = params!!.iter!!;
         } else {
-            iterations = 10000;
+            iterations = 32768;
         }
         let salt: ArrayBuffer;
         if (params && params!!.salt) {
             salt = base64StringToArrayBuffer(params!!.salt!!);
         } else {
             salt = randomValues(new Uint8Array(8));
+        }
+        let adata: ArrayBuffer | undefined;
+        if (params && params!!.adata) {
+            adata = encoder.encode(params!!.adata!!);
+        } else {
+            adata = undefined;
         }
         const keyArray = await this.pbkdf2(key, salt, 'SHA-256', iterations, AES_KEY_SIZE / 8, false);
         const importedKey = await crypto.importKey('raw', keyArray, {
@@ -103,28 +126,33 @@ export class FastCryptoAPI implements ICryptoAPI {
         if (params && params!!.iv) {
             ivArray = base64StringToArrayBuffer(params!!.iv!!);
         } else {
-            ivArray = randomValues(new Uint8Array(12));
+            ivArray = randomValues(new Uint8Array(MINIMAL_SALT_SIZE));
         }
         const cryptoResult = await crypto.encrypt(
             {
                 name: ALGORITHM,
                 iv: ivArray,
-                tagLength: TAG_LENGTH
+                tagLength: TAG_LENGTH,
+                additionalData: adata
             },
             importedKey,
             encoder.encode(plain)
         );
-        const result = {} as ISJCLParams;
+        const result = {} as ICryptoParams;
         result.ct = arrayBufferToBase64String(cryptoResult);
         result.iv = arrayBufferToBase64String(ivArray);
         result.salt = arrayBufferToBase64String(salt);
         result.v = VERSION;
         result.iter = iterations;
         result.ks = AES_KEY_SIZE;
-        result.mode = 'gcm';
+        result.mode = AES_MODE;
         result.ts = TAG_LENGTH;
-        result.cipher = 'aes';
-        result.adata = '';
+        result.cipher = CIPHER_TYPE;
+        if (adata) {
+            result.adata = arrayBufferToBase64String(adata);
+        } else {
+            result.adata = '';
+        }
         return Promise.resolve(result);
     }
 
@@ -132,11 +160,11 @@ export class FastCryptoAPI implements ICryptoAPI {
         return 'FAST';
     }
 
-    public canEncrypt(params?: ISJCLParams): Promise<boolean> {
+    public canEncrypt(params?: ICryptoParams): Promise<boolean> {
         return Promise.resolve(this.canEncryptOrDecrypt(params));
     }
 
-    public async decrypt(key: string, params: ISJCLParams): Promise<string> {
+    public async decrypt(key: string, params: ICryptoParams): Promise<string> {
         if (!params.ct) {
             throw new Error('cipher text not specified!');
         }
@@ -154,13 +182,19 @@ export class FastCryptoAPI implements ICryptoAPI {
         if (params.ks) {
             keyLen = params.ks!!;
         } else {
-            keyLen = AES_KEY_SIZE;
+            throw new Error('key size not specified!');
         }
         let salt: ArrayBuffer;
         if (params.salt) {
             salt = base64StringToArrayBuffer(params.salt!!);
         } else {
             throw new Error('salt not specified!');
+        }
+        let adata: ArrayBuffer | undefined;
+        if (params.adata) {
+            adata = base64StringToArrayBuffer(params!!.adata!!);
+        } else {
+            adata = undefined;
         }
         const keyArray = await this.pbkdf2(key, salt, 'SHA-256', iterations, keyLen / 8, false);
         const importedKey = await crypto.importKey('raw', keyArray, {
@@ -176,7 +210,8 @@ export class FastCryptoAPI implements ICryptoAPI {
             {
                 name: ALGORITHM,
                 iv: ivArray,
-                tagLength: params.ts!!
+                tagLength: params.ts!!,
+                additionalData: adata
             },
             importedKey,
             base64StringToArrayBuffer(params.ct!!)
@@ -184,33 +219,32 @@ export class FastCryptoAPI implements ICryptoAPI {
         return this.decoderInstance!!.decode(cryptoResult);
     }
 
-    public canDecrypt(params: ISJCLParams): Promise<boolean> {
+    public canDecrypt(params: ICryptoParams): Promise<boolean> {
         return Promise.resolve(this.canEncryptOrDecrypt(params));
     }
 
 
     private initialize(): boolean {
-        return doInitialize(this);
+        return doInitialize(this, this._log);
     }
 
-    private canEncryptOrDecrypt(params?: ISJCLParams): boolean {
-        let able = this.initialize();
-        if (params === undefined) {
-            return able;
+    private canEncryptOrDecrypt(params?: ICryptoParams): boolean {
+        let able = true;
+        if (params !== undefined) {
+            if (params.mode !== undefined && params.mode !== AES_MODE) {
+                this._log.error(() => 'failed on mode');
+                able = false;
+            }
+            // if (params.adata !== undefined && params.adata !== '') {
+            //    this._log.error(() => 'failed on adata');
+            //    able = false;
+            // }
+            if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength < MINIMAL_SALT_SIZE) {
+                this._log.error(() => 'failed on IV');
+                able = false;
+            }
         }
-        if (params.mode !== undefined && params.mode !== 'gcm') {
-            able = false;
-        }
-        if (params.adata !== undefined && params.adata !== '') {
-            able = false;
-        }
-        if (params.iv !== undefined && base64StringToArrayBuffer(params.iv).byteLength < 12) {
-            able = false;
-        }
-        if (params.ts !== undefined && params.ts !== 128) {
-            able = false;
-        }
-        return able;
+        return able && this.initialize();
     }
 
     /**

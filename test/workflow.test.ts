@@ -1,3 +1,4 @@
+import { ConsoleLog } from 'improved-vaultage-client/src/vaultage';
 import { Crypto } from '../src/Crypto';
 import { PasswordStrength } from '../src/interface';
 import { VaultDB } from '../src/VaultDB';
@@ -16,10 +17,13 @@ test('Workflow', async () => {
     cPrint('Note that this is demoing the inside of the vaultage SDK but all of this complexity' +
         ' is going to be hidden behind the Vault class.\n');
 
-    const crypto = new Crypto({
-        LOCAL_KEY_SALT: 'abcdef',
-        REMOTE_KEY_SALT: '01234576',
-    });
+    const crypto = new Crypto(
+        {
+            LOCAL_KEY_SALT: 'abcdef',
+            REMOTE_KEY_SALT: '01234576',
+        },
+        ConsoleLog.INSTANCE
+    );
 
     const masterKey = 'ilovesushi';
 
@@ -27,7 +31,8 @@ test('Workflow', async () => {
     cPrint('My local key is: ' + key + '\n');
 
     // tslint:disable-next-line:object-literal-key-quotes
-    const db = new VaultDB({'0': {
+    const db = new VaultDB({
+        0: {
             title: 'Hello',
             id: '0',
             created: 'now',

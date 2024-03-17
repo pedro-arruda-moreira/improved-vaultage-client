@@ -1,5 +1,6 @@
 import { Crypto } from './Crypto';
 import { HttpApi } from './HTTPApi';
+import { ILog } from './ILog';
 import { IHttpParams, IVaultDBEntry, IVaultDBEntryAttrs, IVaultDBEntryAttrsImproved, IVaultDBEntryImproved, PasswordStrength } from './interface';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
 import { deepCopy, fromBase64, toBase64 } from './utils';
@@ -42,8 +43,8 @@ export class Vault {
      * @returns a new Vault.
      */
     public static async build(creds: ICredentials, crypto: Crypto, cipher: string | undefined, offlineProvider: IOfflineProvider,
-                              httpParams?: IHttpParams, demoMode?: boolean) {
-        const newVault = new Vault(creds, crypto, offlineProvider, httpParams, demoMode);
+                              log: ILog, httpParams?: IHttpParams, demoMode?: boolean) {
+        const newVault = new Vault(creds, crypto, offlineProvider, log, httpParams, demoMode);
         if (cipher) {
             await newVault._setCipher(creds, cipher);
             await newVault._saveOfflineVault();
@@ -58,6 +59,7 @@ export class Vault {
     private _lastFingerprint?: string;
     private _isServerInDemoMode: boolean;
     private _offlineProvider: IOfflineProvider;
+    private _log: ILog;
     /**
      * Do -*NOT*- call this constructor directly, instead use Vault.build(params...),
      * this constructor is only public to allow applications using the client to create
@@ -69,13 +71,14 @@ export class Vault {
      * @param demoMode is server in demo mode?
      */
     public constructor(creds: ICredentials, crypto: Crypto, offlineProvider: IOfflineProvider,
-                       httpParams?: IHttpParams, demoMode?: boolean) {
+                       log: ILog, httpParams?: IHttpParams, demoMode?: boolean) {
         this._creds = { ...creds };
         this._crypto = crypto;
         this._db = new VaultDB({});
         this._httpParams = httpParams;
         this._isServerInDemoMode = false;
         this._offlineProvider = offlineProvider;
+        this._log = log;
         if (demoMode === true) {
             this._isServerInDemoMode = true;
         }
@@ -167,7 +170,7 @@ export class Vault {
         this._ensureOnline();
         const newCredentials = deepCopy(this._creds);
         if (this.offlineEnabled) {
-            newCredentials.offlineKey = Crypto.deriveOfflineKey(newPassword, await this._offlineProvider.offlineSalt());
+            newCredentials.offlineKey = Crypto.deriveOfflineKey(newPassword, await this._offlineProvider.offlineSalt(), this._log);
         }
         const newLocalKey = this._crypto.deriveLocalKey(newPassword);
         const newRemoteKey = this._crypto.deriveRemoteKey(newPassword);
@@ -333,10 +336,9 @@ export class Vault {
             const plain = VaultDB.serialize(this._db);
             const offlineCipher = await this._crypto.encrypt(await this._creds.offlineKey as string, plain);
             await this._offlineProvider.saveOfflineCipher(offlineCipher);
-            console.log('offline vault saved.');
+            this._log.info(() => 'offline vault saved.');
         } catch (reason) {
-            console.error('Error saving offline vault:');
-            console.error(reason);
+            this._log.error(() => 'Error saving offline vault:', reason);
         }
     }
 

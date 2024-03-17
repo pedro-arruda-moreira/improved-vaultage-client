@@ -1,4 +1,5 @@
-import { CryptoOperation, getCryptoAPI, ISJCLParams, param2String, string2Param } from './crypto-impl/CryptoAPI';
+import { CryptoOperation, getCryptoAPI, ICryptoParams, param2String, string2Param } from './crypto-impl/CryptoAPI';
+import { ILog } from './ILog';
 import { ISaltsConfig } from './interface';
 import { ERROR_CODE, VaultageError } from './VaultageError';
 
@@ -16,19 +17,20 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      * @param offlineSalt the offline salt
      */
-    public static async deriveOfflineKey(masterPassword: string, offlineSalt: string): Promise<string> {
-        return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY);
+    public static async deriveOfflineKey(masterPassword: string, offlineSalt: string, log: ILog): Promise<string> {
+        return Crypto.tryDeriveWithBestApi(masterPassword, offlineSalt, OFFLINE_PBKDF2_DIFFICULTY, undefined, log);
     }
 
-    private static async tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true) {
-        return (await getCryptoAPI(CryptoOperation.DERIVE)).deriveKey(password, salt, difficulty, useSha512);
+    private static async tryDeriveWithBestApi(password: string, salt: string, difficulty: number, useSha512: boolean = true, log: ILog) {
+        return (await getCryptoAPI(CryptoOperation.DERIVE, log)).deriveKey(password, salt, difficulty, useSha512);
     }
 
     public PBKDF2_DIFFICULTY: number = 32768;
 
     constructor(
         private _salts: ISaltsConfig,
-        private _sjclConfig?: ISJCLParams) {
+        private _log: ILog,
+        private _sjclConfig?: ICryptoParams) {
     }
 
     /**
@@ -37,7 +39,7 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      */
     public deriveLocalKey(masterPassword: string): Promise<string> {
-        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY);
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.LOCAL_KEY_SALT, this.PBKDF2_DIFFICULTY, undefined, this._log);
     }
 
     /**
@@ -46,7 +48,7 @@ export class Crypto {
      * @param masterPassword Plaintext of the master password
      */
     public deriveRemoteKey(masterPassword: string): Promise<string> {
-        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY);
+        return Crypto.tryDeriveWithBestApi(masterPassword, this._salts.REMOTE_KEY_SALT, this.PBKDF2_DIFFICULTY, undefined, this._log);
     }
 
     /**
@@ -58,7 +60,11 @@ export class Crypto {
      * @param plain The plaintext to encrypt
      */
     public async encrypt(localKey: string, plain: string): Promise<string> {
-        const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, this._sjclConfig)).encrypt(plain, localKey, this._sjclConfig);
+        const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, this._log, this._sjclConfig)).encrypt(
+            plain,
+            localKey,
+            this._sjclConfig
+        );
         return param2String(p);
     }
 
@@ -73,7 +79,7 @@ export class Crypto {
     public async decrypt(localKey: string, cipher: string): Promise<string> {
         try {
             const param = string2Param(cipher);
-            return (await getCryptoAPI(CryptoOperation.DECRYPT, param)).decrypt(localKey, param);
+            return (await getCryptoAPI(CryptoOperation.DECRYPT, this._log, param)).decrypt(localKey, param);
         } catch (e) {
             throw new VaultageError(ERROR_CODE.CANNOT_DECRYPT, 'An error occurred while decrypting the cipher', e);
         }
@@ -100,6 +106,6 @@ export class Crypto {
         // The localKey is already derived from the username, some per-deployment salt and
         // the master password so using it as a salt here should be enough to show that we know
         // all of the above information.
-        return Crypto.tryDeriveWithBestApi(plain, localKey, this.PBKDF2_DIFFICULTY, false);
+        return Crypto.tryDeriveWithBestApi(plain, localKey, this.PBKDF2_DIFFICULTY, false, this._log);
     }
 }

@@ -14,7 +14,7 @@ function response<T>(data: T): IHttpResponse<T> {
 }
 
 const config: IVaultageConfig = {
-    salts: { local_key_salt: 'deadbeef', remote_key_salt: '0123456789'},
+    salts: { local_key_salt: 'deadbeef', remote_key_salt: '0123456789' },
     version: 1,
     demo: false,
 };
@@ -69,7 +69,11 @@ describe('login', () => {
             return Promise.reject('404 error');
         });
 
-        await expect(login('url', 'username', 'passwd')).rejects.toEqual('404 error');
+        await expect(login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd'
+        })).rejects.toEqual('404 error');
 
         expect(mockAPI).toHaveBeenCalledTimes(1);
         expect(mockAPI).toHaveBeenCalledWith({
@@ -91,7 +95,11 @@ describe('login', () => {
             }));
         });
 
-        await expect(login('url', 'username', 'passwd')).rejects.toHaveProperty('code', ERROR_CODE.BAD_CREDENTIALS);
+        await expect(login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd'
+        })).rejects.toHaveProperty('code', ERROR_CODE.BAD_CREDENTIALS);
 
         expect(mockAPI).toHaveBeenCalledWith({
             url: 'url/config'
@@ -110,7 +118,11 @@ describe('login', () => {
             return Promise.resolve(response({}));
         });
 
-        const vault = await login('url', 'username', 'passwd');
+        const vault = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd'
+        });
 
         expect(mockAPI).toHaveBeenCalledWith({
             url: 'url/config'
@@ -134,10 +146,21 @@ describe('login', () => {
             return Promise.resolve(response({}));
         });
         console.time('vault - offline enabled');
-        const vault = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE, new MockOfflineProvider());
+        const vault = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE,
+            offlineProvider: new MockOfflineProvider()
+        });
         console.timeEnd('vault - offline enabled');
         console.time('vault - offline disabled');
-        const vault2 = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+        const vault2 = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE
+        });
         console.timeEnd('vault - offline disabled');
 
         expect(mockAPI).toHaveBeenNthCalledWith(1,
@@ -173,8 +196,18 @@ describe('login', () => {
             return Promise.resolve(response({}));
         });
 
-        const vault = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
-        const vault2 = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+        const vault = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE
+        });
+        const vault2 = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE
+        });
 
         expect(mockAPI).toHaveBeenNthCalledWith(1,
             {
@@ -208,8 +241,18 @@ describe('login', () => {
             return Promise.resolve(response({}));
         });
 
-        const vault = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
-        const vault2 = await login('url', 'username', 'passwd', undefined, TestConfigCache.INSTANCE);
+        const vault = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE
+        });
+        const vault2 = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            configCache: TestConfigCache.INSTANCE
+        });
 
         expect(mockAPI).toHaveBeenNthCalledWith(1,
             {
@@ -245,10 +288,15 @@ describe('login', () => {
             return Promise.resolve(response({}));
         });
 
-        const vault = await login('url', 'username', 'passwd', {
-            auth: {
-                username: 'Jean',
-                password: 'j0hn'
+        const vault = await login({
+            serverURL: 'url',
+            username: 'username',
+            masterPassword: 'passwd',
+            httpParams: {
+                auth: {
+                    username: 'Jean',
+                    password: 'j0hn'
+                }
             }
         });
 

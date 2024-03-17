@@ -6,9 +6,10 @@ import { IHttpParams, ISaltsConfig } from './interface';
 import { IVaultageConfig } from 'vaultage-protocol';
 import { ICredentials, Vault } from './Vault';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
-import { CryptoOperation, ISJCLParams, getCryptoAPI, param2String, string2Param } from './crypto-impl/CryptoAPI';
+import { CryptoOperation, ICryptoParams, getCryptoAPI, param2String, string2Param } from './crypto-impl/CryptoAPI';
+import { ILog } from './ILog';
 
-export { ISJCLParams };
+export { ICryptoParams };
 export { IOfflineProvider };
 export { IConfigCache };
 export { Passwords } from './Passwords';
@@ -51,29 +52,73 @@ export class NoOPOfflineProvider implements IOfflineProvider {
 
 // pedro-arruda-moreira: fixed docs.
 /**
- * Attempts to pull the cipher and decode it. Saves credentials on success.
+ * Login Options
  * @param serverURL URL to the vaultage server.
  * @param username The username used to locate the cipher on the server
  * @param masterPassword Plaintext of the master password
  * @param httpParams HTTP Parameters (optional)
  * @param configCache Configuration cache (optional)
  * @param offlineProvider Offline provider (optional)
+ * @param cryptoParams Crypto params (optional)
  * @see IHttpParams
  */
-export async function login(
-        serverURL: string,
-        username: string,
-        masterPassword: string,
-        // pedro-arruda-moreira: config cache
-        httpParams?: IHttpParams,
-        configCache: IConfigCache = NoOPSaltsCache.INSTANCE,
-        // pedro-arruda-moreira: offline mode support
-        offlineProvider: IOfflineProvider = NoOPOfflineProvider.INSTANCE,
-        sjclParams?: ISJCLParams): Promise<Vault> {
+export interface ILoginOptions {
+    serverURL: string;
+    username: string;
+    masterPassword: string;
+    // pedro-arruda-moreira: config cache
+    httpParams?: IHttpParams;
+    configCache?: IConfigCache;
+    // pedro-arruda-moreira: offline mode support
+    offlineProvider?: IOfflineProvider;
+    cryptoParams?: ICryptoParams;
+    log?: ILog;
+}
+
+const RESOLVED_PROMISE = Promise.resolve();
+
+export class ConsoleLog implements ILog {
+    public static INSTANCE = new ConsoleLog();
+    public info(msg: () => string): Promise<void> {
+        console.log(msg());
+        return RESOLVED_PROMISE;
+    }
+    public error(msg: () => string, error?: Error): Promise<void> {
+        console.log(msg());
+        if (error) {
+            console.error(error);
+        }
+        return RESOLVED_PROMISE;
+    }
+}
+
+export class NoOPLog implements ILog {
+    public static INSTANCE = new NoOPLog();
+    public info(_: () => string): Promise<void> {
+        return RESOLVED_PROMISE;
+    }
+    public error(_: () => string, __: Error): Promise<void> {
+        return RESOLVED_PROMISE;
+    }
+
+}
+
+/**
+ * Attempts to pull the cipher and decode it. Saves credentials on success.
+ * @param options login options.
+ * @returns the vault.
+ */
+export async function login(options: ILoginOptions): Promise<Vault> {
+
+    const masterPassword = options.masterPassword;
+    const httpParams = options.httpParams;
+    const offlineProvider: IOfflineProvider = options.offlineProvider || NoOPOfflineProvider.INSTANCE;
+    const configCache: IConfigCache = options.configCache || NoOPSaltsCache.INSTANCE;
+    const log: ILog = options.log || NoOPLog.INSTANCE;
 
     const creds = {
-        serverURL: serverURL.replace(/\/$/, ''), // Removes trailing slash
-        username: username,
+        serverURL: options.serverURL.replace(/\/$/, ''), // Removes trailing slash
+        username: options.username,
         localKey: 'null',
         remoteKey: 'null'
     } as ICredentials;
@@ -111,10 +156,10 @@ export async function login(
         REMOTE_KEY_SALT: config.salts.remote_key_salt,
     };
 
-    const crypto = new Crypto(salts, sjclParams);
+    const crypto = new Crypto(salts, log, options.cryptoParams);
 
     if (offline) {
-        creds.localKey = await Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
+        creds.localKey = await Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
     } else {
         // possible optimization: compute the local key while the request is in the air
         const localKey = crypto.deriveLocalKey(masterPassword);
@@ -124,7 +169,7 @@ export async function login(
         creds.remoteKey = await remoteKey;
 
         if (offlineEnabled) {
-            creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt());
+            creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
         }
     }
 
@@ -136,7 +181,7 @@ export async function login(
     }
 
     const cipher = cipherText;
-    return await Vault.build(creds, crypto, cipher, offlineProvider, httpParams, config.demo);
+    return await Vault.build(creds, crypto, cipher, offlineProvider, log, httpParams, config.demo);
 }
 
 export function _mockHttpRequests(fn: HttpRequestFunction): void {
@@ -150,12 +195,12 @@ export function version(): string {
     return pkg.version;
 }
 
-export async function encrypt(key: string, plain: string, params?: ISJCLParams) {
-    const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, params)).encrypt(plain, key, params);
+export async function encrypt(key: string, plain: string, log: ILog, params?: ICryptoParams) {
+    const p = await (await getCryptoAPI(CryptoOperation.ENCRYPT, log, params)).encrypt(plain, key, params);
     return param2String(p);
 }
 
-export async function decrypt(key: string, cipher: string) {
-    const param = string2Param(cipher);
-    return (await getCryptoAPI(CryptoOperation.DECRYPT, param)).decrypt(key, param);
+export async function decrypt(key: string, cipher: string, log: ILog) {
+    const params = string2Param(cipher);
+    return (await getCryptoAPI(CryptoOperation.DECRYPT, log, params)).decrypt(key, params);
 }

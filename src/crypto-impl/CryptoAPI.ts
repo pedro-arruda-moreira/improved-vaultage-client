@@ -1,29 +1,34 @@
+import { ILog } from '../ILog';
 import { FastCryptoAPI } from './FastCryptoAPI';
 import { LegacyCryptoAPI } from './LegacyCryptoAPI';
 
-export type SJCL_AESMode = 'ccm' | 'gcm' | 'ocb2';
+export type AESMode = 'ccm' | 'gcm' | 'ocb2';
 
-export type SJCL_AuthenticationDataHashSize = 64 | 96 | 128;
+export type AuthenticationDataHashSize = 64 | 96 | 128;
 
-export type SJCL_KeySize = 128 | 192 | 256;
+export type KeySize = 128 | 192 | 256;
+
+export type Version = 1;
+
+export type CipherType = 'aes';
 
 
 /**
  * Params for SJCL.
  */
-export interface ISJCLParams {
+export interface ICryptoParams {
     /**
      * Cipher type (must be always 'aes')
      */
-    cipher?: string;
+    cipher?: CipherType;
 
     /**
      * Version (must be always 1)
      */
-    v?: number;
+    v?: Version;
 
     /**
-     * Authentication data
+     * Additional data
      */
     adata?: string;
 
@@ -35,17 +40,17 @@ export interface ISJCLParams {
     /**
      * AES mode
      */
-    mode?: SJCL_AESMode;
+    mode?: AESMode;
 
     /**
-     * Authentication data hash size
+     * Authentication data (Tag) hash size
      */
-    ts?: SJCL_AuthenticationDataHashSize;
+    ts?: AuthenticationDataHashSize;
 
     /**
      * key size
      */
-    ks?: SJCL_KeySize;
+    ks?: KeySize;
 
     /**
      * Initialization Vector
@@ -73,19 +78,19 @@ export interface ICryptoAPI {
     deriveKey(password: string, salt: string, difficulty: number, useSha512: boolean): Promise<string>;
     canDerive(): Promise<boolean>;
 
-    encrypt(plain: string, key: string, params?: ISJCLParams): Promise<ISJCLParams>;
-    canEncrypt(params?: ISJCLParams): Promise<boolean>;
+    encrypt(plain: string, key: string, params?: ICryptoParams): Promise<ICryptoParams>;
+    canEncrypt(params?: ICryptoParams): Promise<boolean>;
 
-    decrypt(key: string, cipher: ISJCLParams): Promise<string>;
-    canDecrypt(params: ISJCLParams): Promise<boolean>;
+    decrypt(key: string, cipher: ICryptoParams): Promise<string>;
+    canDecrypt(params: ICryptoParams): Promise<boolean>;
 
     description(): string;
 }
 
 
-export async function getCryptoAPI(op: CryptoOperation, params?: ISJCLParams): Promise<ICryptoAPI> {
+export async function getCryptoAPI(op: CryptoOperation, log: ILog, params?: ICryptoParams): Promise<ICryptoAPI> {
     const availableApis = [
-        new FastCryptoAPI(),
+        new FastCryptoAPI(log),
         new LegacyCryptoAPI()
     ] as ICryptoAPI[];
     for (const api of availableApis) {
@@ -102,15 +107,15 @@ export async function getCryptoAPI(op: CryptoOperation, params?: ISJCLParams): P
                 return api;
             }
         }
-        console.log(`ICryptoAPI '${api.description()}' is not capable of ${op === 1 ? 'ENCRYPT' : (op === 0 ? 'DERIVE' : 'DECRYPT')} with params ${param2String(params)}`);
+        log.error(() => `ICryptoAPI '${api.description()}' is not capable of ${op === 1 ? 'ENCRYPT' : (op === 0 ? 'DERIVE' : 'DECRYPT')} with params ${param2String(params)}`);
     }
     throw new Error('unable to find a ICryptoAPI');
 }
 
-export function param2String(param?: ISJCLParams): string {
+export function param2String(param?: ICryptoParams): string {
     return JSON.stringify(param);
 }
 
-export function string2Param(str: string): ISJCLParams {
-    return JSON.parse(str) as ISJCLParams;
+export function string2Param(str: string): ICryptoParams {
+    return JSON.parse(str) as ICryptoParams;
 }

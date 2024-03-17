@@ -1,22 +1,37 @@
-import { ICryptoAPI, ISJCLParams, param2String, string2Param } from './CryptoAPI';
+import { ICryptoAPI, ICryptoParams, param2String, string2Param } from './CryptoAPI';
 
 
 // tslint:disable-next-line:no-var-requires
 const sjcl = require('../../lib/sjcl') as any;
 
 
-function sjcl_encrypt(key: string, plain: string, params?: ISJCLParams): string {
+function checkEquality(originalParams: ICryptoParams, newParams: ICryptoParams, field: string): void {
+    if (originalParams[field] !== newParams[field]) {
+        if (field === 'adata') {
+            newParams[field] = sjcl_utf8_from_bits(newParams[field] as unknown as number[]);
+            checkEquality(originalParams, newParams, field);
+            return;
+        }
+        throw new Error(`field ${field} does not match! - params: ${originalParams[field]}, returningParams: ${newParams[field]}`);
+    }
+}
+
+function sjcl_encrypt(key: string, plain: string, params?: ICryptoParams): string {
     if (params) {
-        const returningParams: ISJCLParams = {};
+        const returningParams: ICryptoParams = {};
         const retVal = sjcl.encrypt(key, plain, params, returningParams);
+
+        // tslint:disable-next-line
         for (const field in params) {
-            if (params[field] !== returningParams[field]) {
-                throw new Error(`field ${field} does not match!`);
-            }
+            checkEquality(params, returningParams, field);
         }
         return retVal;
     }
     return sjcl.encrypt(key, plain);
+}
+
+function sjcl_utf8_from_bits(bitArray: number[]): string {
+    return sjcl.codec.utf8String.fromBits(bitArray);
 }
 
 function sjcl_decrypt(key: string, cipher: string): string {
@@ -46,20 +61,20 @@ export class LegacyCryptoAPI implements ICryptoAPI {
         return Promise.resolve(true);
     }
 
-    public encrypt(plain: string, key: string, params?: ISJCLParams): Promise<ISJCLParams> {
+    public encrypt(plain: string, key: string, params?: ICryptoParams): Promise<ICryptoParams> {
         const result = sjcl_encrypt(key, plain, params);
         return Promise.resolve(string2Param(result));
     }
 
-    public canEncrypt(_: ISJCLParams): Promise<boolean> {
+    public canEncrypt(_: ICryptoParams): Promise<boolean> {
         return Promise.resolve(true);
     }
 
-    public decrypt(key: string, cipher: ISJCLParams): Promise<string> {
+    public decrypt(key: string, cipher: ICryptoParams): Promise<string> {
         return Promise.resolve(sjcl_decrypt(key, param2String(cipher)));
     }
 
-    public canDecrypt(_: ISJCLParams): Promise<boolean> {
+    public canDecrypt(_: ICryptoParams): Promise<boolean> {
         return Promise.resolve(true);
     }
 
