@@ -25,6 +25,7 @@ class SimpleOfflineProvider implements IOfflineProvider {
 }
 
 async function runIntegrationTest() {
+    const start = new Date().getTime();
     const serverUrl = 'http://localhost:3000/';
     const username = 'john';
     const masterpwd = '1234';
@@ -258,7 +259,7 @@ async function runIntegrationTest() {
         fail(vault, 'The offlineCipher is empty.');
     }
 
-    console.log('Everything went well ! Test OK.');
+    console.log(`Everything went well ! Test OK. (test duration: ${new Date().getTime() - start} ms)`);
 }
 
 runIntegrationTest().catch((e) => {

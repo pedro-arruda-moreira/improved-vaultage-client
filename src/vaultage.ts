@@ -157,13 +157,11 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     };
 
     const crypto = new Crypto(salts, log, options.cryptoParams);
-
+    let localKey: Promise<string>;
     if (offline) {
-        creds.localKey = await Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
+        localKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
     } else {
-        // possible optimization: compute the local key while the request is in the air
-        const localKey = crypto.deriveLocalKey(masterPassword);
-        creds.localKey = await localKey;
+        localKey = crypto.deriveLocalKey(masterPassword);
 
         const remoteKey = crypto.deriveRemoteKey(masterPassword);
         creds.remoteKey = await remoteKey;
@@ -173,15 +171,15 @@ export async function login(options: ILoginOptions): Promise<Vault> {
         }
     }
 
-    let cipherText: string | null = null;
+    let cipherText: Promise<string>;
     if (offline) {
-        cipherText = await offlineProvider.getOfflineCipher();
+        cipherText = offlineProvider.getOfflineCipher();
     } else {
-        cipherText = await HttpApi.pullCipher(creds, httpParams);
+        cipherText = HttpApi.pullCipher(creds, httpParams);
     }
 
-    const cipher = cipherText;
-    return await Vault.build(creds, crypto, cipher, offlineProvider, log, httpParams, config.demo);
+    creds.localKey = await localKey;
+    return await Vault.build(creds, crypto, await cipherText, offlineProvider, log, httpParams, config.demo);
 }
 
 export function _mockHttpRequests(fn: HttpRequestFunction): void {
