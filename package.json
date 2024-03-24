@@ -9,7 +9,9 @@
         "clean": "rimraf dist/",
         "lint": "tslint -p .",
         "unit-test": "npm run lint && cross-env NODE_PATH=.. jest",
-        "test": "npm run unit-test && ts-node test/integration_test.ts",
+        "test": "npm run unit-test && npm run integration-test",
+        "integration-test": "ts-node test/integration_test.ts",
+        "performance-test": "ts-node test/performance_test.ts",
         "watch": "cross-env NODE_PATH=.. jest --watch",
         "rebuild-test": "npm run clean && npm run build && npm run test",
         "rebuild-dep-test": "rimraf node_modules/ && npm install && npm install --save-dev && npm run rebuild-test"
