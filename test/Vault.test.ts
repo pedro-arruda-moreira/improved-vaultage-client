@@ -53,6 +53,10 @@ describe('Vault.ts can', () => {
         HttpService.mock(mockAPI);
     });
 
+    afterEach(() => {
+        HttpService.reset();
+    });
+
     it('create an empty vault', async () => {
         const vault = await Vault.build(creds, crypto, undefined, NoOPOfflineProvider.INSTANCE, ConsoleLog.INSTANCE);
         expect(vault.getAllEntries().length).toBe(0);

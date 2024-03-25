@@ -126,10 +126,10 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     // pedro-arruda-moreira: offline mode support
     const offlineEnabled = offlineProvider !== NoOPOfflineProvider.INSTANCE;
     const offline = await offlineProvider.isRunningOffline();
-    let obtainedConfig: IVaultageConfig | null = null;
+    let config: IVaultageConfig;
     if (offline) {
         creds.serverURL = OFFLINE_URL;
-        obtainedConfig = {
+        config = {
             version: 1,
             demo: false,
             salts: {
@@ -140,16 +140,16 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     } else {
 
         // pedro-arruda-moreira: config cache
-        obtainedConfig = configCache.loadConfig(creds.serverURL);
-        if (!obtainedConfig) {
-            obtainedConfig = await HttpApi.pullConfig(creds.serverURL, httpParams);
-            if (!obtainedConfig.demo) {
-                configCache.saveConfig(creds.serverURL, obtainedConfig);
+        const maybeCachedConfig = configCache.loadConfig(creds.serverURL);
+        if (!maybeCachedConfig) {
+            config = await HttpApi.pullConfig(creds.serverURL, httpParams);
+            if (!config.demo) {
+                configCache.saveConfig(creds.serverURL, config);
             }
+        } else {
+            config = maybeCachedConfig;
         }
     }
-
-    const config = obtainedConfig;
 
     const salts: ISaltsConfig = {
         LOCAL_KEY_SALT: config.salts.local_key_salt,
@@ -179,7 +179,8 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     }
 
     creds.localKey = await localKey;
-    return await Vault.build(creds, crypto, await cipherText, offlineProvider, log, httpParams, config.demo);
+    const ct = await cipherText;
+    return await Vault.build(creds, crypto, ct, offlineProvider, log, httpParams, config.demo);
 }
 
 export function _mockHttpRequests(fn: HttpRequestFunction): void {

@@ -63,17 +63,26 @@ describe('login', () => {
         config.demo = false;
     });
 
+    afterEach(() => {
+        HttpService.reset();
+    });
+
     it('detects an unreachable remote', async () => {
         mockAPI.mockImplementationOnce((_parameters) => {
             // bad luck, server unreachable
             return Promise.reject('404 error');
         });
 
-        await expect(login({
-            serverURL: 'url',
-            username: 'username',
-            masterPassword: 'passwd'
-        })).rejects.toEqual('404 error');
+        try {
+            await login({
+                serverURL: 'url',
+                username: 'username',
+                masterPassword: 'passwd'
+            });
+            fail('expected error.');
+        } catch (e) {
+            expect(e).toEqual('404 error');
+        }
 
         expect(mockAPI).toHaveBeenCalledTimes(1);
         expect(mockAPI).toHaveBeenCalledWith({
@@ -95,11 +104,16 @@ describe('login', () => {
             }));
         });
 
-        await expect(login({
-            serverURL: 'url',
-            username: 'username',
-            masterPassword: 'passwd'
-        })).rejects.toHaveProperty('code', ERROR_CODE.BAD_CREDENTIALS);
+        try {
+            await login({
+                serverURL: 'url',
+                username: 'username',
+                masterPassword: 'passwd'
+            });
+            fail('expected error.');
+        } catch (e) {
+            expect(e).toHaveProperty('code', ERROR_CODE.BAD_CREDENTIALS);
+        }
 
         expect(mockAPI).toHaveBeenCalledWith({
             url: 'url/config'
