@@ -11,3 +11,4 @@ compiled
 tmp
 demo/tmp
 *.bak
+*.orig

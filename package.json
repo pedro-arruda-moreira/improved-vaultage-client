@@ -13,7 +13,9 @@
         "integration-test": "ts-node test/integration_test.ts",
         "performance-test": "ts-node test/performance_test.ts",
         "watch": "cross-env NODE_PATH=.. jest --watch",
-        "rebuild-test": "npm run clean && npm run build && npm run test",
+        "rebuild": "npm run clean && npm run build",
+        "rebuild-test": "npm run rebuild && npm run test",
+        "rebuild-perf": "npm run rebuild && npm run performance-test",
         "rebuild-dep-test": "rimraf node_modules/ && npm install && npm install --save-dev && npm run rebuild-test"
     },
     "files": [
