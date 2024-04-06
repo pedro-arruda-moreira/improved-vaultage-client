@@ -73,6 +73,10 @@ export interface ILoginOptions {
     offlineProvider?: IOfflineProvider;
     cryptoParams?: ICryptoParams;
     log?: ILog;
+    /**
+     * used only for debugging and unit tests.
+     */
+    disableParallel?: boolean;
 }
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -115,6 +119,7 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     const offlineProvider: IOfflineProvider = options.offlineProvider || NoOPOfflineProvider.INSTANCE;
     const configCache: IConfigCache = options.configCache || NoOPSaltsCache.INSTANCE;
     const log: ILog = options.log || NoOPLog.INSTANCE;
+    const disableParallel = options.disableParallel || false;
 
     const creds = {
         serverURL: options.serverURL.replace(/\/$/, ''), // Removes trailing slash
@@ -169,6 +174,9 @@ export async function login(options: ILoginOptions): Promise<Vault> {
         if (offlineEnabled) {
             creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
         }
+    }
+    if (disableParallel) {
+        await localKey;
     }
 
     let cipherText: Promise<string>;

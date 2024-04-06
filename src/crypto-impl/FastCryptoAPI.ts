@@ -56,7 +56,7 @@ function randomValues(buff: Uint8Array): Uint8Array {
 }
 
 function toHexString(bytes: Uint8Array) {
-    return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    return Buffer.from(bytes).toString('hex');
 }
 
 /**

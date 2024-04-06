@@ -3,7 +3,7 @@ import { HttpApi } from './HTTPApi';
 import { ILog } from './ILog';
 import { IHttpParams, IVaultDBEntry, IVaultDBEntryAttrs, IVaultDBEntryAttrsImproved, IVaultDBEntryImproved, PasswordStrength } from './interface';
 import { IOfflineProvider, OFFLINE_URL } from './IOfflineProvider';
-import { deepCopy, fromBase64, toBase64 } from './utils';
+import { deepCopy, fromBase64String, toBase64String } from './utils';
 import { VaultDB } from './VaultDB';
 
 export interface ICredentials {
@@ -401,7 +401,7 @@ export class Vault {
             try {
                 const urlJson = JSON.parse(url.split('|||').join(',')) as IUrlJson;
                 clone.itemUrl = urlJson.url;
-                clone.secureNoteText = fromBase64(urlJson.secureNote);
+                clone.secureNoteText = fromBase64String(urlJson.secureNote);
             } catch (e) {
                 clone.itemUrl = url;
                 clone.secureNoteText = '';
@@ -426,7 +426,7 @@ export class Vault {
             const clone = cloneAny as IVaultDBEntry;
             clone.url = JSON.stringify({
                 url: itemUrl,
-                secureNote: toBase64(secureNoteText)
+                secureNote: toBase64String(secureNoteText)
             } as IUrlJson);
             returnVal.push(clone);
         }
@@ -448,7 +448,7 @@ export class Vault {
             const clone = cloneAny as IVaultDBEntryAttrs;
             clone.url = JSON.stringify({
                 url: itemUrl,
-                secureNote: toBase64(secureNoteText)
+                secureNote: toBase64String(secureNoteText)
             } as IUrlJson);
             returnVal.push(clone);
         }
