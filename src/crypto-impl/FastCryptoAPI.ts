@@ -128,13 +128,16 @@ export class FastCryptoAPI implements ICryptoAPI {
         } else {
             ivArray = randomValues(new Uint8Array(MINIMAL_IV_SIZE));
         }
+        const aesParams: AesGcmParams = {
+            name: ALGORITHM,
+            iv: ivArray,
+            tagLength: TAG_LENGTH
+        };
+        if (adata !== undefined) {
+            aesParams.additionalData = adata;
+        }
         const cryptoResult = await crypto.encrypt(
-            {
-                name: ALGORITHM,
-                iv: ivArray,
-                tagLength: TAG_LENGTH,
-                additionalData: adata
-            },
+            aesParams,
             importedKey,
             encoder.encode(plain)
         );
@@ -206,13 +209,16 @@ export class FastCryptoAPI implements ICryptoAPI {
         } else {
             throw new Error('IV not specified!');
         }
+        const aesParams: AesGcmParams = {
+            name: ALGORITHM,
+            iv: ivArray,
+            tagLength: params.ts!!
+        };
+        if (adata !== undefined) {
+            aesParams.additionalData = adata;
+        }
         const cryptoResult = await crypto.decrypt(
-            {
-                name: ALGORITHM,
-                iv: ivArray,
-                tagLength: params.ts!!,
-                additionalData: adata
-            },
+            aesParams,
             importedKey,
             base64StringToArrayBuffer(params.ct!!)
         );
