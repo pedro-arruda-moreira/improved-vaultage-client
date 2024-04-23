@@ -57,7 +57,7 @@ async function runPerfTest() {
                 serverURL: serverUrl,
                 username,
                 masterPassword: masterpwd,
-                log: vaultage.ConsoleLog.INSTANCE
+                log: vaultage.NoOPLog.INSTANCE
             });
         }
 

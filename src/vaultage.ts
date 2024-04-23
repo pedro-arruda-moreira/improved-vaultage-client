@@ -60,6 +60,8 @@ export class NoOPOfflineProvider implements IOfflineProvider {
  * @param configCache Configuration cache (optional)
  * @param offlineProvider Offline provider (optional)
  * @param cryptoParams Crypto params (optional)
+ * @param log Log Handler (optional)
+ * @param parallel *do not pass, ever.*
  * @see IHttpParams
  */
 export interface ILoginOptions {
@@ -75,8 +77,9 @@ export interface ILoginOptions {
     log?: ILog;
     /**
      * used only for debugging and unit tests.
+     * If not on unit tests, do not pass (default true)
      */
-    disableParallel?: boolean;
+    parallel?: boolean;
 }
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -107,6 +110,13 @@ export class NoOPLog implements ILog {
 
 }
 
+function parallelEnabled(options: ILoginOptions) {
+    if (options.parallel === undefined) {
+        return true;
+    }
+    return options.parallel;
+}
+
 /**
  * Attempts to pull the cipher and decode it. Saves credentials on success.
  * @param options login options.
@@ -119,7 +129,7 @@ export async function login(options: ILoginOptions): Promise<Vault> {
     const offlineProvider: IOfflineProvider = options.offlineProvider || NoOPOfflineProvider.INSTANCE;
     const configCache: IConfigCache = options.configCache || NoOPSaltsCache.INSTANCE;
     const log: ILog = options.log || NoOPLog.INSTANCE;
-    const disableParallel = options.disableParallel || false;
+    const parallel = parallelEnabled(options);
 
     const creds = {
         serverURL: options.serverURL.replace(/\/$/, ''), // Removes trailing slash
@@ -167,6 +177,9 @@ export async function login(options: ILoginOptions): Promise<Vault> {
         localKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
     } else {
         localKey = crypto.deriveLocalKey(masterPassword);
+        if (!parallel) {
+            void(await localKey);
+        }
 
         const remoteKey = crypto.deriveRemoteKey(masterPassword);
         creds.remoteKey = await remoteKey;
@@ -174,9 +187,6 @@ export async function login(options: ILoginOptions): Promise<Vault> {
         if (offlineEnabled) {
             creds.offlineKey = Crypto.deriveOfflineKey(masterPassword, await offlineProvider.offlineSalt(), log);
         }
-    }
-    if (disableParallel) {
-        await localKey;
     }
 
     let cipherText: Promise<string>;

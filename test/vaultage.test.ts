@@ -78,7 +78,7 @@ describe('login', () => {
                 serverURL: 'url',
                 username: 'username',
                 masterPassword: 'passwd',
-                disableParallel: true
+                parallel: false
             });
             fail('expected error.');
         } catch (e) {
@@ -110,7 +110,7 @@ describe('login', () => {
                 serverURL: 'url',
                 username: 'username',
                 masterPassword: 'passwd',
-                disableParallel: true
+                parallel: false
             });
             fail('expected error.');
         } catch (e) {
@@ -138,7 +138,7 @@ describe('login', () => {
             serverURL: 'url',
             username: 'username',
             masterPassword: 'passwd',
-            disableParallel: true
+            parallel: false
         });
 
         expect(mockAPI).toHaveBeenCalledWith({
@@ -169,7 +169,7 @@ describe('login', () => {
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
             offlineProvider: new MockOfflineProvider(),
-            disableParallel: true
+            parallel: false
         });
         console.timeEnd('vault - offline enabled');
         console.time('vault - offline disabled');
@@ -178,7 +178,7 @@ describe('login', () => {
             username: 'username',
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
-            disableParallel: true
+            parallel: false
         });
         console.timeEnd('vault - offline disabled');
 
@@ -220,14 +220,14 @@ describe('login', () => {
             username: 'username',
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
-            disableParallel: true
+            parallel: false
         });
         const vault2 = await login({
             serverURL: 'url',
             username: 'username',
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
-            disableParallel: true
+            parallel: false
         });
 
         expect(mockAPI).toHaveBeenNthCalledWith(1,
@@ -267,14 +267,14 @@ describe('login', () => {
             username: 'username',
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
-            disableParallel: true
+            parallel: false
         });
         const vault2 = await login({
             serverURL: 'url',
             username: 'username',
             masterPassword: 'passwd',
             configCache: TestConfigCache.INSTANCE,
-            disableParallel: true
+            parallel: false
         });
 
         expect(mockAPI).toHaveBeenNthCalledWith(1,
@@ -321,7 +321,7 @@ describe('login', () => {
                     password: 'j0hn'
                 }
             },
-            disableParallel: true
+            parallel: false
         });
 
         expect(mockAPI).toHaveBeenCalledWith({
